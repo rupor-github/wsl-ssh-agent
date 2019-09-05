@@ -61,7 +61,7 @@ After that just execute
 		    export SSH_AUTH_SOCK=/mnt/c/wsl-ssh-agent/ssh-agent.sock
 		    ```
 
-    * You could avoid any actions on WSL side by using `WSLENV=SSH_AUTH_SOCK/up`
+    * You could avoid any actions on WSL side by manually setting `SSH_AUTH_SOCK` and `WSLENV=SSH_AUTH_SOCK/up` on Windows side.
 
 	* Using `--setenv` option allow application to automatically modify user environment, so every WSL session started while
       `wsl-ssh-agent-gui.exe` is running will have proper `SSH_AUTH_SOCKET` available to it (using `WSLENV`). By default socket
