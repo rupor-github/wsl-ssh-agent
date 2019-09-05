@@ -1,0 +1,35 @@
+run:
+  skip-dirs:
+    - build
+    - cmake
+    - doc
+    - tools
+    - vendor
+    - util
+  tests: false
+  issues-exit-code: 0
+
+linters:
+  presets:
+    - bugs
+    - unused
+    - style
+  disable:
+    - dupl
+    - gochecknoglobals
+    - gochecknoinits
+  fast: false
+
+linters-settings:
+  lll:
+    # max line length, lines longer will be reported. Default is 120.
+    # '\t' is counted as 1 character by default, and can be changed with the tab-width option
+    line-length: 180
+    # tab width in spaces. Default to 1.
+    tab-width: 4
+
+issues:
+  exclude-rules:
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec

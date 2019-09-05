@@ -1,0 +1,6 @@
+package misc
+
+func GetVersion() string {
+	return "@PRJ_VERSION_MAJOR@.@PRJ_VERSION_MINOR@"
+}
+
