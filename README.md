@@ -42,12 +42,12 @@ After that just execute
 
 ## Usage
 
-1. Ensure that on Windows side `ssh-agent` service (OpenSSH Authentication Agent) is started - you may want to switch its startup mode to "automatic". Using powershell with elevated privilidges (admin mode):
+1. Ensure that on Windows side `ssh-agent` service (OpenSSH Authentication Agent) is started - you may want to switch its startup mode to "automatic". Using powershell with elevated privileges (admin mode):
 ```
 	Start-Service ssh-agent
 	Set-Service -StartupType Automatic ssh-agent
 ```
-2. Run `wsl-ssh-agent-gui.exe`. Basically there are several possible scenarious:
+2. Run `wsl-ssh-agent-gui.exe`. Basically there are several possible scenarios:
 
 	* Using `--socket` option specify "well known" path on Windows side and then properly specify the same path in every WSL session:
 
@@ -64,8 +64,8 @@ After that just execute
     * You could avoid any actions on WSL side by using `WSLENV=SSH_AUTH_SOCK/up`
 
 	* Using `--setenv` option allow application to automatically modify user environment, so every WSL session started while
-      `wsl-ssh-agent-gui.exe` is runnig will have proper `SSH_AUTH_SOCKET` available to it (using `WSLENV`). By default socket
-      path points to user temporary directory. Usial Windows user environment modification rules are applicable here.
+      `wsl-ssh-agent-gui.exe` is running will have proper `SSH_AUTH_SOCKET` available to it (using `WSLENV`). By default socket
+      path points to user temporary directory. Usual Windows user environment modification rules are applicable here.
 
 ## Options
 
