@@ -3,6 +3,8 @@ github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/pkg/guid
 # github.com/allan-simon/go-singleinstance v0.0.0-20160830203053-79edcfdc2dfc
 github.com/allan-simon/go-singleinstance
+# github.com/atotto/clipboard v0.1.2
+github.com/atotto/clipboard
 # github.com/getlantern/context v0.0.0-20190109183933-c447772a6520
 github.com/getlantern/context
 # github.com/getlantern/errors v0.0.0-20190325191628-abdb3e3e36f7
@@ -24,6 +26,8 @@ github.com/oxtoacart/bpool
 # github.com/shuLhan/go-bindata v3.4.0+incompatible
 github.com/shuLhan/go-bindata
 github.com/shuLhan/go-bindata/cmd/go-bindata
-# golang.org/x/sys v0.0.0-20190904154756-749cb33beabd
+# github.com/skratchdot/open-golang v0.0.0-20190402232053-79abb63cd66e
+github.com/skratchdot/open-golang/open
+# golang.org/x/sys v0.0.0-20190907184412-d223b2b6db03
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry

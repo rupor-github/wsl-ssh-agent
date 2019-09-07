@@ -20,6 +20,7 @@ import (
 	si "github.com/allan-simon/go-singleinstance"
 	"github.com/getlantern/systray"
 
+	"wsl-ssh-agent/citrus"
 	"wsl-ssh-agent/misc"
 	"wsl-ssh-agent/static"
 	"wsl-ssh-agent/util"
@@ -39,15 +40,12 @@ var (
 	setenv     bool
 	debug      bool
 	help       bool
+	lemon      = citrus.ParamsValue{
+		Port:  2489,
+		Allow: "0.0.0.0/0,::/0",
+	}
+	cli = flag.NewFlagSet(title, flag.ContinueOnError)
 )
-
-func init() {
-	flag.StringVar(&socketName, "socket", "", fmt.Sprintf("Auth socket `path` (max %d characters)", util.MaxNameLen))
-	flag.StringVar(&pipeName, "pipe", "", "Pipe `name` used by Windows ssh-agent.exe")
-	flag.BoolVar(&setenv, "setenv", false, "Export SSH_AUTH_SOCK and modify WSLENV")
-	flag.BoolVar(&help, "help", false, "Show help")
-	flag.BoolVar(&debug, "debug", false, "Enable verbose debug logging")
-}
 
 func onReady() {
 
@@ -67,7 +65,7 @@ func onReady() {
 		for {
 			select {
 			case <-help.ClickedCh:
-				flag.Usage()
+				cli.Usage()
 			case <-quit.ClickedCh:
 				systray.Quit()
 				return
@@ -260,24 +258,39 @@ func main() {
 	log.SetFlags(0)
 
 	// Prepare help and parse arguments
-	var buf strings.Builder
-	flag.CommandLine.SetOutput(&buf)
-	flag.Usage = func() {
-		buf.Reset()
+
+	cli.StringVar(&socketName, "socket", "", fmt.Sprintf("Auth socket `path` (max %d characters)", util.MaxNameLen))
+	cli.StringVar(&pipeName, "pipe", "", "Pipe `name` used by Windows ssh-agent.exe")
+	cli.BoolVar(&setenv, "setenv", false, "Export SSH_AUTH_SOCK and modify WSLENV")
+	cli.BoolVar(&help, "help", false, "Show help")
+	cli.BoolVar(&debug, "debug", false, "Enable verbose debug logging")
+	cli.Var(&lemon, "lemonade", "semicolon separated `list` of lemonade \"server\" options (TCP port, Allow IP Range, Line Endings)")
+
+	cli.Usage = func() {} // do not show anything while parsing
+	if err := cli.Parse(os.Args[1:]); err != nil {
+		util.ShowOKMessage(util.MsgError, title, err.Error())
+		os.Exit(1)
+	}
+	cli.Usage = func() {
+		var buf strings.Builder
+		cli.SetOutput(&buf)
 		fmt.Fprintf(&buf, "\n%s\n\nVersion:\n\t%s (%s)\n\t%s\n\n", tooltip, misc.GetVersion(), runtime.Version(), LastGitCommit)
 		fmt.Fprintf(&buf, "Usage:\n\t%s [options]\n\nOptions:\n\n", title)
-		flag.PrintDefaults()
+		cli.PrintDefaults()
 		if len(socketName) > 0 {
 			_, _ = buf.WriteString(fmt.Sprintf("\nSocket path:\n  %s", socketName))
 		}
 		if len(pipeName) > 0 {
 			_, _ = buf.WriteString(fmt.Sprintf("\nPipe name:\n  %s", pipeName))
 		}
+		if lemon.IsSet() {
+			_, _ = buf.WriteString(fmt.Sprintf("\nLemonade stand:\n  %s", lemon.String()))
+		}
 		util.ShowOKMessage(util.MsgInformation, title, buf.String())
 	}
-	flag.Parse()
+
 	if help {
-		flag.Usage()
+		cli.Usage()
 		os.Exit(0)
 	}
 
@@ -303,9 +316,26 @@ func main() {
 		os.Remove(lockName)
 	}()
 
+	// Start lemonade backend if requested
+	var lemonade *citrus.Citrus
+	if lemon.IsSet() {
+		log.Printf("Starting lemonade server on '%s'", lemon.String())
+		if lemonade, err = citrus.NewCitrus(lemon); err != nil {
+			util.ShowOKMessage(util.MsgError, title, err.Error())
+			os.Exit(1)
+		} else {
+			log.Print("Serving lemonade")
+			go func() {
+				lemonade.Serve(debug)
+				// If for some reason process breaks - exit
+				log.Print("Quiting - lemonade server ended")
+				systray.Quit()
+			}()
+		}
+	}
+
 	// enter main processing loop
 	if err := run(); err != nil {
-		log.Printf("Processing error: '%s'", err)
 		util.ShowOKMessage(util.MsgError, title, err.Error())
 	}
 }

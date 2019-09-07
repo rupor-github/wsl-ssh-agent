@@ -3,6 +3,7 @@
 package util
 
 import (
+	"log"
 	"syscall"
 	"unsafe"
 )
@@ -19,6 +20,9 @@ const (
 
 // ShowOKMessage shows MB_OK message box.
 func ShowOKMessage(t MsgType, title, text string) {
+
+	log.Print(text)
+
 	var (
 		mod  = syscall.NewLazyDLL("user32")
 		proc = mod.NewProc("MessageBoxW")

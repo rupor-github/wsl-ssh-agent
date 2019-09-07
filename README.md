@@ -15,6 +15,10 @@ This makes it possible to remove all trickery from WSL side greatly simplifying 
 end. It proxes all requests from this socket to ssh-agent.exe via named pipe. The only thing required on WSL end for it to work
 is to make sure that WSL `SSH_AGENT_SOCK` points to proper socket path. The same socket could be shared by any/all WSL sessions.
 
+As an additional bonus `wsl-ssh-agent-gui.exe` could work as [lemonade](https://github.com/lemonade-command/lemonade) server so you could send your
+clipboard from tmux or neovim remote session back to your windows box over SSH secured connection easily. Running `lemonade.exe` console
+application in the background on Windows was always a bit tedious. Please, read lemonade documentation for details on how this works and parameters description.
+
 **SECURITY NOTICE:** All the usual security caveats applicable to WSL apply.
 Most importantly, all interaction with the Win32 world happens with the credentials of
 the user who started the WSL environment. In practice, *if you allow someone else to
@@ -69,29 +73,36 @@ After that just execute
 
 ## Options
 
-Run `wsl-ssh-agent-gui.exe -h`
+Run `wsl-ssh-agent-gui.exe -help`
 
 	Helper to interface with Windows ssh-agent.exe service from WSL
+
 	Version:
-		1.0 (go1.13)
+		1.1 (go1.13)
 		<git sha hash>
+
 	Usage:
 		wsl-ssh-agent-gui [options]
+
 	Options:
-	  -debug
+
+		-debug
 			Enable verbose debug logging
-	  -help
+		-help
 			Show help
-	  -pipe name
+		-lemonade list
+			semicolon separated list of lemonade "server" options (TCP port, Allow IP Range, Line Endings)
+		-pipe name
 			Pipe name used by Windows ssh-agent.exe
-	  -setenv
+		-setenv
 			Export SSH_AUTH_SOCK and modify WSLENV
-	  -socket path
+		-socket path
 			Auth socket path (max 108 characters)
 
 ## Credit
 
-* Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration
+* Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration.
+* Thanks to [Masataka Pocke Kuwabara](https://github.com/pocke) for [lemonade](https://github.com/lemonade-command/lemonade) - a remote utility tool. (copy, paste and open browser) over TCP.
 
 ------------------------------------------------------------------------------
 Licensed under the GNU GPL version 3 or later, http://gnu.org/licenses/gpl.html
