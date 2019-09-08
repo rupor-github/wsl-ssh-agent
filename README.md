@@ -119,7 +119,7 @@ On `remote` my `tmux.conf` includes following lines:
 
 set -g set-clipboard off
 if-shell 'if [ $(uname -a | grep -c Microsoft) = 1 ]; then true; else false; fi' \
-	'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "win32yank -i --crlf" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "win32yank -i --crlf"' \
+	`bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/win32yank -i --crlf" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/win32yank -i --crlf"' \
 	'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"'
 ```
 And my `neovim` configuration file `init.vim` on `remote` has following lines:
