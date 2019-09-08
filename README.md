@@ -173,6 +173,7 @@ endif
 
 * Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration.
 * Thanks to [Masataka Pocke Kuwabara](https://github.com/pocke) for [lemonade](https://github.com/lemonade-command/lemonade) - a remote utility tool. (copy, paste and open browser) over TCP.
+* Thanks to [equalsraf](https://github.com/equalsraf) for [win32yank](https://github.com/equalsraf/win32yank) - Windows clipboard tool.
 
 ------------------------------------------------------------------------------
 Licensed under the GNU GPL version 3 or later, http://gnu.org/licenses/gpl.html
