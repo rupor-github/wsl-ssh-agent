@@ -122,7 +122,7 @@ if-shell 'if [ $(uname -a | grep -c Microsoft) = 1 ]; then true; else false; fi'
 	'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "win32yank -i --crlf" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "win32yank -i --crlf"' \
 	'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"'
 ```
-And my `neovim` configuration `init.vim` has following:
+And my `neovim` configuration file `init.vim` on `remote` has following lines:
 ```
 let s:u_wsl = 1
 let _ = system("uname -a | grep -cq Microsoft")
