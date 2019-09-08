@@ -99,6 +99,72 @@ Run `wsl-ssh-agent-gui.exe -help`
 		-socket path
 			Auth socket path (max 108 characters)
 
+## Example
+
+Putting it all together nicely - `remote` here refers to your wsl shell or some other box or virtual machine you could `ssh` to. Assuming that [lemonade](https://github.com/lemonade-command/lemonade) is in your path on `remote` and you installed [win32yank](https://github.com/equalsraf/win32yank) somewhere in `drvfs` location (and link it in your path `/usr/local/bin/win32yank ⇒ /mnt/c/wslhome/win32yank.exe`).
+
+I auto-start `wsl-ssh-agent-gui.exe` on logon on my Windows box using following command line:
+```
+	wsl-ssh-agent-gui.exe --setenv --lemonade=2489;127.0.0.1/24
+```
+and my `.ssh/config` entries used to `ssh` to `remote` have port forwarding enabled:
+```
+	RemoteForward 2489 127.0.0.1:2489
+```
+On `remote` my `tmux.conf` includes following lines:
+```
+	set -g set-clipboard off
+	if-shell 'if [ $(uname -a | grep -c Microsoft) = 1 ]; then true; else false; fi' \
+		'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "win32yank -i --crlf" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "win32yank -i --crlf"' \
+		'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"'
+```
+And my `neovim` configuration `init.vim` has following:
+```
+    let s:u_wsl = 1
+    let _ = system("uname -a | grep -cq Microsoft")
+    if v:shell_error
+        let s:u_wsl = 0
+    endif
+
+	" ----- Clipboard
+	set clipboard+=unnamedplus
+	if s:u_wsl
+		" ----- on WSL try to use win32yank if available
+		" ----- we are relying on WSLENV being set to "USERPROFILE/up" outside of WSL
+		let s:win32yank = $USERPROFILE . '/.wsl/win32yank.exe'
+		if filereadable(s:win32yank)
+			let g:clipboard = {
+				\   'name': 'win32yank',
+				\   'copy': {
+				\      '+': s:win32yank . ' -i --crlf',
+				\      '*': s:win32yank . ' -i --crlf',
+				\    },
+				\   'paste': {
+				\      '+': s:win32yank . ' -o --lf',
+				\      '*': s:win32yank . ' -o --lf',
+				\   },
+				\   'cache_enabled': 0,
+				\ }
+		endif
+	elseif has("unix")
+		" ----- on UNIX ask lemonade to translate line-endings
+		if executable('lemonade')
+			let g:clipboard = {
+				\   'name': 'lemonade',
+				\   'copy': {
+				\      '+': 'lemonade copy',
+				\      '*': 'lemonade copy',
+				\    },
+				\   'paste': {
+				\      '+': 'lemonade paste --line-ending lf',
+				\      '*': 'lemonade paste --line-ending lf',
+				\   },
+				\   'cache_enabled': 0,
+				\ }
+		endif
+	endif
+```
+
 ## Credit
 
 * Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration.
