@@ -169,6 +169,8 @@ elseif has("unix")
 endif
 ```
 
+Now you could open your WSL in terminal of your choice - mintty, cmd, Windows terminal, `ssh` to your `remote` using keys stored in Windows `ssh-ahent.exe` without entering any additional passwords and have your clipboard content back on Windows transparently.
+
 ## Credit
 
 * Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration.
