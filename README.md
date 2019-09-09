@@ -46,11 +46,12 @@ After that just execute
 
 ## Usage
 
-1. Ensure that on Windows side `ssh-agent` service (OpenSSH Authentication Agent) is started - you may want to switch its startup mode to "automatic". Using powershell with elevated privileges (admin mode):
+1. Ensure that on Windows side `ssh-agent.exe` service (OpenSSH Authentication Agent) is started and has your keys. (After adding keys to Windows `ssh-agent.exe` you may remove them from your wsl home .ssh directory - just do not forget to adjust `IdentitiesOnly` directive in your ssh config accordingly. Keys are securely persisted in Windows registry, available for your account only). You may also want to switch its startup mode to "automatic". Using powershell with elevated privileges (admin mode):
 ```
 	Start-Service ssh-agent
 	Set-Service -StartupType Automatic ssh-agent
 ```
+
 2. Run `wsl-ssh-agent-gui.exe`. Basically there are several possible scenarios:
 
 	* Using `--socket` option specify "well known" path on Windows side and then properly specify the same path in every WSL session:
