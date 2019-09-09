@@ -72,6 +72,16 @@ After that just execute
       `wsl-ssh-agent-gui.exe` is running will have proper `SSH_AUTH_SOCKET` available to it (using `WSLENV`). By default socket
       path points to user temporary directory. Usual Windows user environment modification rules are applicable here.
 
+When `wsl-ssh-agent-gui.exe` is running you could see what it is connected to by clicking on its icon in notification tray area and selecting `About`. At the bottom of the message you would see something like:
+```
+Socket path:
+  C:\Users\rupor\AppData\Local\Temp\ssh-273683143.sock
+Pipe name:
+  \\.\pipe\openssh-ssh-agent
+Lemonade stand:
+  2489;127.0.0.1/24
+```
+
 ## Options
 
 Run `wsl-ssh-agent-gui.exe -help`
