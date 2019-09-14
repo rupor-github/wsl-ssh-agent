@@ -1,6 +1,7 @@
 package citrus
 
 import (
+	"log"
 	"net"
 	"regexp"
 	"strings"
@@ -12,19 +13,24 @@ import (
 type Clipboard struct {
 	connCh chan net.Conn
 	params ParamsValue
+	debug  bool
 }
 
 // NewClipboard initializes Clipboard structure.
-func NewClipboard(ch chan net.Conn, params ParamsValue) *Clipboard {
+func NewClipboard(ch chan net.Conn, params ParamsValue, debug bool) *Clipboard {
 	return &Clipboard{
 		connCh: ch,
 		params: params,
+		debug:  debug,
 	}
 }
 
 // Copy is implementation of "lemonade" rpc "copy" command.
 func (c *Clipboard) Copy(text string, _ *struct{}) error {
 	<-c.connCh
+	if c.debug {
+		log.Printf("lemonade Copy request received len: %d", len(text))
+	}
 	// Logger instance needs to be passed here somehow?
 	return clipboard.WriteAll(convertLineEnding(text, c.params.LE))
 }
@@ -33,6 +39,9 @@ func (c *Clipboard) Copy(text string, _ *struct{}) error {
 func (c *Clipboard) Paste(_ struct{}, resp *string) error {
 	<-c.connCh
 	t, err := clipboard.ReadAll()
+	if c.debug {
+		log.Printf("lemonade Paste request received len: %d, error: '%+v'", len(t), err)
+	}
 	*resp = t
 	return err
 }

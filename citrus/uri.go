@@ -13,13 +13,15 @@ import (
 type URI struct {
 	connCh chan net.Conn
 	params ParamsValue
+	debug  bool
 }
 
 // NewURI initializes URI structure.
-func NewURI(ch chan net.Conn, params ParamsValue) *URI {
+func NewURI(ch chan net.Conn, params ParamsValue, debug bool) *URI {
 	return &URI{
 		connCh: ch,
 		params: params,
+		debug:  debug,
 	}
 }
 
@@ -32,9 +34,15 @@ type OpenParam struct {
 // Open is implementation of "lemonade" rpc "open" command.
 func (u *URI) Open(param *OpenParam, _ *struct{}) error {
 	conn := <-u.connCh
+	if u.debug {
+		log.Printf("lemonade URI parameters received: '%v'", *param)
+	}
 	uri := param.URI
 	if param.TransLoopback {
 		uri = translateLoopbackIP(param.URI, conn)
+	}
+	if u.debug {
+		log.Printf("lemonade run URI: '%s'", uri)
 	}
 	return open.Run(uri)
 }

@@ -320,7 +320,7 @@ func main() {
 	var lemonade *citrus.Citrus
 	if lemon.IsSet() {
 		log.Printf("Starting lemonade server on '%s'", lemon.String())
-		if lemonade, err = citrus.NewCitrus(lemon); err != nil {
+		if lemonade, err = citrus.NewCitrus(lemon, debug); err != nil {
 			util.ShowOKMessage(util.MsgError, title, err.Error())
 			os.Exit(1)
 		} else {

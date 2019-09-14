@@ -13,20 +13,22 @@ type Citrus struct {
 	params   ParamsValue
 	ra       *Range
 	listener *net.TCPListener
+	debug    bool
 }
 
 // NewCitrus initializes "lemonade" server.
-func NewCitrus(params ParamsValue) (*Citrus, error) {
+func NewCitrus(params ParamsValue, debug bool) (*Citrus, error) {
 
 	res := &Citrus{
 		connCh: make(chan net.Conn, 1),
 		params: params,
+		debug:  debug,
 	}
 
-	if err := rpc.Register(NewURI(res.connCh, res.params)); err != nil {
+	if err := rpc.Register(NewURI(res.connCh, res.params, res.debug)); err != nil {
 		return nil, fmt.Errorf("unable to register URI rpc: %w", err)
 	}
-	if err := rpc.Register(NewClipboard(res.connCh, res.params)); err != nil {
+	if err := rpc.Register(NewClipboard(res.connCh, res.params, res.debug)); err != nil {
 		return nil, fmt.Errorf("unable to register Clipboard rpc: %w", err)
 	}
 
