@@ -72,7 +72,7 @@ After that just execute
       `wsl-ssh-agent-gui.exe` is running will have proper `SSH_AUTH_SOCKET` available to it (using `WSLENV`). By default socket
       path points to user temporary directory. Usual Windows user environment modification rules are applicable here.
 
-Please, note, that setting SSH_AUTH_SOCK on Windows end may interfere with the rest of Windows OpenSSH functionality. As far as I could see presently utilities in `Windows\System32\OpenSSH` expect this environment variable to be either empty or set to `ssh-agent.exe` pipe:
+**NOTE:** Setting SSH_AUTH_SOCK on Windows side may (and probably will) interfere with some of Windows OpenSSH. As far as I could see presently utilities in `Windows\System32\OpenSSH` expect this environment variable to be either empty or set to proper `ssh-agent.exe` pipe, otherwise they cannot read socket:
 
 ```
 	if (getenv("SSH_AUTH_SOCK") == NULL)
