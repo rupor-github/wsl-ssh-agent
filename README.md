@@ -15,7 +15,7 @@ This makes it possible to remove all trickery from WSL side greatly simplifying 
 end. It proxes all requests from this socket to ssh-agent.exe via named pipe. The only thing required on WSL end for it to work
 is to make sure that WSL `SSH_AGENT_SOCK` points to proper socket path. The same socket could be shared by any/all WSL sessions.
 
-As an additional bonus `wsl-ssh-agent-gui.exe` could work as [lemonade](https://github.com/lemonade-command/lemonade) server so you could send your
+As an additional bonus `wsl-ssh-agent-gui.exe` could work as [lemonade](https://github.com/rupor-github/lemonade) server so you could send your
 clipboard from tmux or neovim remote session back to your windows box over SSH secured connection easily. Running `lemonade.exe` console
 application in the background on Windows was always a bit tedious. Please, read lemonade documentation for details on how this works and parameters description.
 
@@ -112,7 +112,7 @@ Run `wsl-ssh-agent-gui.exe -help`
 
 ## Example
 
-Putting it all together nicely - `remote` here refers to your wsl shell or some other box or virtual machine you could `ssh` to. Assuming that [lemonade](https://github.com/lemonade-command/lemonade) is in your path on `remote` and you installed [win32yank](https://github.com/equalsraf/win32yank) somewhere in `drvfs` location.
+Putting it all together nicely - `remote` here refers to your wsl shell or some other box or virtual machine you could `ssh` to. Assuming that [lemonade](https://github.com/rupor-github/lemonade) is in your path on `remote` and you installed [win32yank](https://github.com/equalsraf/win32yank) somewhere in `drvfs` location.
 
 I auto-start `wsl-ssh-agent-gui.exe` on logon on my Windows box using following command line:
 ```
