@@ -79,7 +79,7 @@ After that just execute
 		_putenv("SSH_AUTH_SOCK=\\\\.\\pipe\\openssh-ssh-agent");
 ```
 
-So it makes sence to carefully consider your needs, remember that using well know socket name and setting SSH_AUTH_SOCK on WSL side allows you to avoid problems.
+So it makes sence to carefully consider your needs, remember that using "well known" socket name and setting SSH_AUTH_SOCK on WSL side allows you to avoid such problems.
 
 When `wsl-ssh-agent-gui.exe` is running you could see what it is connected to by clicking on its icon in notification tray area and selecting `About`. At the bottom of the message you would see something like:
 ```
