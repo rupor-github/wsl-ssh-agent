@@ -53,7 +53,7 @@ func PrepareUserEnvironment(path string, debug bool) error {
 	parts := strings.Split(val, ":")
 	vals := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if len(parts) == 0 {
+		if len(part) == 0 {
 			continue
 		}
 		if !strings.HasPrefix(part, varName) {
@@ -98,7 +98,7 @@ func CleanUserEnvironment(debug bool) error {
 	parts := strings.Split(val, ":")
 	vals := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if len(parts) == 0 {
+		if len(part) == 0 {
 			continue
 		}
 		if !strings.HasPrefix(part, varName) {
@@ -107,10 +107,18 @@ func CleanUserEnvironment(debug bool) error {
 	}
 	val = strings.Join(vals, ":")
 
-	if err := k.SetStringValue(wslName, val); err != nil {
-		return err
-	} else if debug {
-		log.Printf("Set '%s=%s'", wslName, val)
+	if len(val) == 0 {
+		if err := k.DeleteValue(wslName); err != nil {
+			return err
+		} else if debug {
+			log.Printf("Del '%s'", wslName)
+		}
+	} else {
+		if err := k.SetStringValue(wslName, val); err != nil {
+			return err
+		} else if debug {
+			log.Printf("Set '%s=%s'", wslName, val)
+		}
 	}
 
 	notifySystem()
