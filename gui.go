@@ -262,11 +262,11 @@ func main() {
 
 	cli.StringVar(&socketName, "socket", "", fmt.Sprintf("Auth socket `path` (max %d characters)", util.MaxNameLen))
 	cli.StringVar(&pipeName, "pipe", "", "Pipe `name` used by Windows ssh-agent.exe")
-	cli.StringVar(&envName, "envname", "SSH_AUTH_SOCK", "`name` of environment variable to hold socket path")
+	cli.StringVar(&envName, "envname", "SSH_AUTH_SOCK", "Environment variable `name` to hold socket path")
 	cli.BoolVar(&setenv, "setenv", false, "Export environment variable with 'envname' and modify WSLENV.")
 	cli.BoolVar(&help, "help", false, "Show help")
 	cli.BoolVar(&debug, "debug", false, "Enable verbose debug logging")
-	cli.Var(&lemon, "lemonade", "semicolon separated `list` of lemonade \"server\" options (TCP port, Allow IP Range, Line Endings)")
+	cli.Var(&lemon, "lemonade", "Semicolon separated `list` of lemonade \"server\" options (TCP port, Allow IP Range, Line Endings)")
 
 	cli.Usage = func() {} // do not show anything while parsing
 	if err := cli.Parse(os.Args[1:]); err != nil {
