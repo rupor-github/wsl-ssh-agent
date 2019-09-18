@@ -69,7 +69,7 @@ After that just execute
     * You could avoid any actions on WSL side by manually setting `SSH_AUTH_SOCK` and `WSLENV=SSH_AUTH_SOCK/up` on Windows side (**see note below**).
 
 	* Using `-setenv` option allows application automatically modify user environment, so every WSL session started while
-      `wsl-ssh-agent-gui.exe` is running will have proper `SSH_AUTH_SOCKET` available to it (using `WSLENV`). By default socket
+      `wsl-ssh-agent-gui.exe` is running will have proper `SSH_AUTH_SOCK` available to it (using `WSLENV`). By default socket
       path points to user temporary directory. Usual Windows user environment modification rules are applicable here (**see note below**).
 
 **NOTE:** Setting SSH_AUTH_SOCK environment on Windows side may (and probably will) interfere with some of Windows OpenSSH. As far as I could see presently utilities in `Windows\System32\OpenSSH` expect this environment variable to be either empty or set to proper `ssh-agent.exe` pipe, otherwise they cannot read socket:
