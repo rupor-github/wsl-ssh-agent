@@ -54,7 +54,7 @@ After that just execute
 
 2. Run `wsl-ssh-agent-gui.exe`. Basically there are several possible scenarios:
 
-	* Using `--socket` option specify "well known" path on Windows side and then properly specify the same path in every WSL session:
+	* Using `-socket` option specify "well known" path on Windows side and then properly specify the same path in every WSL session:
 
 		Windows:
 		    ```
@@ -66,20 +66,24 @@ After that just execute
 		    export SSH_AUTH_SOCK=/mnt/c/wsl-ssh-agent/ssh-agent.sock
 		    ```
 
-    * You could avoid any actions on WSL side by manually setting `SSH_AUTH_SOCK` and `WSLENV=SSH_AUTH_SOCK/up` on Windows side.
+    * You could avoid any actions on WSL side by manually setting `SSH_AUTH_SOCK` and `WSLENV=SSH_AUTH_SOCK/up` on Windows side (**see note below**).
 
-	* Using `--setenv` option allows application automatically modify user environment, so every WSL session started while
+	* Using `-setenv` option allows application automatically modify user environment, so every WSL session started while
       `wsl-ssh-agent-gui.exe` is running will have proper `SSH_AUTH_SOCKET` available to it (using `WSLENV`). By default socket
-      path points to user temporary directory. Usual Windows user environment modification rules are applicable here.
+      path points to user temporary directory. Usual Windows user environment modification rules are applicable here (**see note below**).
 
-**NOTE:** Setting SSH_AUTH_SOCK on Windows side may (and probably will) interfere with some of Windows OpenSSH. As far as I could see presently utilities in `Windows\System32\OpenSSH` expect this environment variable to be either empty or set to proper `ssh-agent.exe` pipe, otherwise they cannot read socket:
+**NOTE:** Setting SSH_AUTH_SOCK environment on Windows side may (and probably will) interfere with some of Windows OpenSSH. As far as I could see presently utilities in `Windows\System32\OpenSSH` expect this environment variable to be either empty or set to proper `ssh-agent.exe` pipe, otherwise they cannot read socket:
 
 ```
 	if (getenv("SSH_AUTH_SOCK") == NULL)
 		_putenv("SSH_AUTH_SOCK=\\\\.\\pipe\\openssh-ssh-agent");
 ```
 
-So it makes sence to carefully consider your needs, remember that using "well known" socket name and setting SSH_AUTH_SOCK on WSL side allows you to avoid such problems.
+To avoid this and still be able to use `-setenv` and automatically generated socket path use `-envname` to specify variable name to set. Later you could use trivial
+```
+export SSH_AUTH_SOCK=${<<YOUR-NAME-HERE>>}
+```
+on WSL side.
 
 When `wsl-ssh-agent-gui.exe` is running you could see what it is connected to by clicking on its icon in notification tray area and selecting `About`. At the bottom of the message you would see something like:
 ```
@@ -98,25 +102,27 @@ Run `wsl-ssh-agent-gui.exe -help`
 	Helper to interface with Windows ssh-agent.exe service from WSL
 
 	Version:
-		1.1 (go1.13)
-		<git sha hash>
+		1.2.2 (go1.13)
+		fdfb08c513bd95babac7591968e87e4aeb6faf6f*
 
 	Usage:
 		wsl-ssh-agent-gui [options]
 
 	Options:
 
-		-debug
+	  -debug
 			Enable verbose debug logging
-		-help
+	  -envname name
+			name of environment variable to hold socket path (default "SSH_AUTH_SOCK")
+	  -help
 			Show help
-		-lemonade list
+	  -lemonade list
 			semicolon separated list of lemonade "server" options (TCP port, Allow IP Range, Line Endings)
-		-pipe name
+	  -pipe name
 			Pipe name used by Windows ssh-agent.exe
-		-setenv
-			Export SSH_AUTH_SOCK and modify WSLENV
-		-socket path
+	  -setenv
+			Export environment variable with 'envname' and modify WSLENV.
+	  -socket path
 			Auth socket path (max 108 characters)
 
 ## Example
@@ -125,7 +131,11 @@ Putting it all together nicely - `remote` here refers to your wsl shell or some 
 
 I auto-start `wsl-ssh-agent-gui.exe` on logon on my Windows box using following command line:
 ```
-wsl-ssh-agent-gui.exe --setenv --lemonade=2489;127.0.0.1/24
+wsl-ssh-agent-gui.exe -setenv -envname=WSL_AUTH_SOCK -lemonade=2489;127.0.0.1/24
+```
+In my .bashrc I have:
+```
+[ -n ${WSL_AUTH_SOCK} ] && export SSH_AUTH_SOCK=${WSL_AUTH_SOCK}
 ```
 and my `.ssh/config` entries used to `ssh` to `remote` have port forwarding enabled:
 ```

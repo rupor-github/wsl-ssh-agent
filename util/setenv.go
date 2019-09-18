@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	varName = "SSH_AUTH_SOCK"
 	wslName = "WSLENV"
 )
 
@@ -29,7 +28,7 @@ func notifySystem() {
 
 // PrepareUserEnvironment modifies user environment. It sets SSH_AUTH_SOCK and creates/changes WSLENV to make sure path is
 // available to all WSL environments started after this fuction was called.
-func PrepareUserEnvironment(path string, debug bool) error {
+func PrepareUserEnvironment(name, path string, debug bool) error {
 
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.READ|registry.WRITE)
 	if err != nil {
@@ -37,10 +36,10 @@ func PrepareUserEnvironment(path string, debug bool) error {
 	}
 	defer k.Close()
 
-	if err := k.SetStringValue(varName, path); err != nil {
+	if err := k.SetStringValue(name, path); err != nil {
 		return err
 	} else if debug {
-		log.Printf("Set '%s=%s'", varName, path)
+		log.Printf("Set '%s=%s'", name, path)
 	}
 
 	val, _, err := k.GetStringValue(wslName)
@@ -56,11 +55,11 @@ func PrepareUserEnvironment(path string, debug bool) error {
 		if len(part) == 0 {
 			continue
 		}
-		if !strings.HasPrefix(part, varName) {
+		if !strings.HasPrefix(part, name) {
 			vals = append(vals, part)
 		}
 	}
-	vals = append(vals, varName+"/up")
+	vals = append(vals, name+"/up")
 	val = strings.Join(vals, ":")
 
 	if err := k.SetStringValue(wslName, val); err != nil {
@@ -74,7 +73,7 @@ func PrepareUserEnvironment(path string, debug bool) error {
 }
 
 // CleanUserEnvironment will reverse settings done by PrepareUserEnvironment.
-func CleanUserEnvironment(debug bool) error {
+func CleanUserEnvironment(name string, debug bool) error {
 
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.READ|registry.WRITE)
 	if err != nil {
@@ -82,10 +81,10 @@ func CleanUserEnvironment(debug bool) error {
 	}
 	defer k.Close()
 
-	if err := k.DeleteValue(varName); err != nil {
+	if err := k.DeleteValue(name); err != nil {
 		return err
 	} else if debug {
-		log.Printf("Del '%s'", varName)
+		log.Printf("Del '%s'", name)
 	}
 
 	val, _, err := k.GetStringValue(wslName)
@@ -101,7 +100,7 @@ func CleanUserEnvironment(debug bool) error {
 		if len(part) == 0 {
 			continue
 		}
-		if !strings.HasPrefix(part, varName) {
+		if !strings.HasPrefix(part, name) {
 			vals = append(vals, part)
 		}
 	}

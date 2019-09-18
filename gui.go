@@ -35,11 +35,12 @@ var (
 	// LastGitCommit is used during build to inject git sha
 	LastGitCommit string
 	// Program arguments
+	debug      bool
+	help       bool
 	socketName string
 	pipeName   string
 	setenv     bool
-	debug      bool
-	help       bool
+	envName    = "SSH_AUTH_SOCK"
 	lemon      = citrus.ParamsValue{
 		Port:  2489,
 		Allow: "0.0.0.0/0,::/0",
@@ -206,11 +207,11 @@ func run() (err error) {
 	}
 
 	if setenv {
-		if err := util.PrepareUserEnvironment(socketName, debug); err != nil {
+		if err := util.PrepareUserEnvironment(envName, socketName, debug); err != nil {
 			return fmt.Errorf("unable to prepare user environment: %w", err)
 		}
 		defer func() {
-			if err := util.CleanUserEnvironment(debug); err != nil {
+			if err := util.CleanUserEnvironment(envName, debug); err != nil {
 				log.Printf("Unable to clean user environment: %s", err.Error())
 			}
 		}()
@@ -261,7 +262,8 @@ func main() {
 
 	cli.StringVar(&socketName, "socket", "", fmt.Sprintf("Auth socket `path` (max %d characters)", util.MaxNameLen))
 	cli.StringVar(&pipeName, "pipe", "", "Pipe `name` used by Windows ssh-agent.exe")
-	cli.BoolVar(&setenv, "setenv", false, "Export SSH_AUTH_SOCK and modify WSLENV")
+	cli.StringVar(&envName, "envname", "SSH_AUTH_SOCK", "`name` of environment variable to hold socket path")
+	cli.BoolVar(&setenv, "setenv", false, "Export environment variable with 'envname' and modify WSLENV.")
 	cli.BoolVar(&help, "help", false, "Show help")
 	cli.BoolVar(&debug, "debug", false, "Enable verbose debug logging")
 	cli.Var(&lemon, "lemonade", "semicolon separated `list` of lemonade \"server\" options (TCP port, Allow IP Range, Line Endings)")
