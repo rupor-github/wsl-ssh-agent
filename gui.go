@@ -20,10 +20,10 @@ import (
 	si "github.com/allan-simon/go-singleinstance"
 	"github.com/getlantern/systray"
 
-	"wsl-ssh-agent/citrus"
-	"wsl-ssh-agent/misc"
-	"wsl-ssh-agent/static"
-	"wsl-ssh-agent/util"
+	"github.com/rupor-github/wsl-ssh-agent/citrus"
+	"github.com/rupor-github/wsl-ssh-agent/misc"
+	"github.com/rupor-github/wsl-ssh-agent/static"
+	"github.com/rupor-github/wsl-ssh-agent/util"
 )
 
 const (

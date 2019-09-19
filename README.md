@@ -1,7 +1,14 @@
-# wsl-ssh-agent
---------------
-
-## Replacement for [ssh-agent-wsl](https://github.com/rupor-github/ssh-agent-wsl).
+<p align="center">
+    <h1 align="center">wsl-ssh-agent</h1>
+    <p align="center">
+		Replacement for [ssh-agent-wsl](https://github.com/rupor-github/ssh-agent-wsl).
+    </p>
+    <p align="center">
+        <a href="https://godoc.org/github.com/rupor-github/wsl-ssh-agent"><img alt="GoDoc" src="https://img.shields.io/badge/godoc-reference-blue.svg" /></a>
+        <a href="https://goreportcard.com/report/github.com/rupor-github/wsl-ssh-agent"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/rupor-github/wsl-ssh-agent" /></a>
+    </p>
+    <hr>
+</p>
 
 Windows 10 has very convenient `ssh-agent` service (with support for persistence and Windows security). Unfortunately it is
 not accessible from WSL. This project aims to correct this situation by enabling access to SSH keys held by Windows own

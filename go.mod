@@ -1,4 +1,4 @@
-module wsl-ssh-agent
+module github.com/rupor-github/wsl-ssh-agent
 
 go 1.13
 
