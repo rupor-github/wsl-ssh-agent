@@ -86,11 +86,10 @@ After that just execute
 		_putenv("SSH_AUTH_SOCK=\\\\.\\pipe\\openssh-ssh-agent");
 ```
 
-To avoid this and still be able to use `-setenv` and automatically generated socket path use `-envname` to specify variable name to set. Later you could use trivial
+To avoid this and still be able to use `-setenv` and automatically generated socket path use `-envname` to specify variable name to set. Later on WSL side you could use:
 ```
 export SSH_AUTH_SOCK=${<<YOUR-NAME-HERE>>}
 ```
-on WSL side.
 
 When `wsl-ssh-agent-gui.exe` is running you could see what it is connected to by clicking on its icon in notification tray area and selecting `About`. At the bottom of the message you would see something like:
 ```
@@ -109,8 +108,8 @@ Run `wsl-ssh-agent-gui.exe -help`
 	Helper to interface with Windows ssh-agent.exe service from WSL
 
 	Version:
-		1.2.2 (go1.13)
-		fdfb08c513bd95babac7591968e87e4aeb6faf6f*
+		<<version>> (<<go version>>)
+		<<git hash>>
 
 	Usage:
 		wsl-ssh-agent-gui [options]
@@ -120,11 +119,11 @@ Run `wsl-ssh-agent-gui.exe -help`
 	  -debug
 			Enable verbose debug logging
 	  -envname name
-			name of environment variable to hold socket path (default "SSH_AUTH_SOCK")
+			Environment variable name to hold socket path (default "SSH_AUTH_SOCK")
 	  -help
 			Show help
 	  -lemonade list
-			semicolon separated list of lemonade "server" options (TCP port, Allow IP Range, Line Endings)
+			Semicolon separated list of lemonade "server" options (TCP port, Allow IP Range, Line Endings)
 	  -pipe name
 			Pipe name used by Windows ssh-agent.exe
 	  -setenv
