@@ -101,6 +101,8 @@ Lemonade stand:
   2489;127.0.0.1/24
 ```
 
+For security reasons unless `-nolock` argument is specified program will refuse access to `ssh-agen.exe` pipe when user session is locked, so any long running background jobs in WSL which require ssh may fail.
+
 ## Options
 
 Run `wsl-ssh-agent-gui.exe -help`
@@ -124,6 +126,8 @@ Run `wsl-ssh-agent-gui.exe -help`
 			Show help
 	  -lemonade list
 			Semicolon separated list of lemonade "server" options (TCP port, Allow IP Range, Line Endings)
+	  -nolock
+			Provide access to ss-agent.exe even when user session is locked
 	  -pipe name
 			Pipe name used by Windows ssh-agent.exe
 	  -setenv

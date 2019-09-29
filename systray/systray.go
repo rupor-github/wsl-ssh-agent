@@ -1,5 +1,5 @@
 /*
-Package systray is a cross platfrom Go library to place an icon and menu in the
+Package systray is a cross platform Go library to place an icon and menu in the
 notification area.
 Supports Windows, Mac OSX and Linux currently.
 Methods can be called from any goroutine except Run(), which should be called
@@ -11,8 +11,6 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
-
-	"github.com/getlantern/golog"
 )
 
 var (
@@ -38,13 +36,53 @@ type MenuItem struct {
 	checked bool
 }
 
-var (
-	log = golog.LoggerFor("systray")
+// SessionEvent describes WM_WTSSESSION_CHANGE wParam.
+type SessionEvent int32
 
-	systrayReady  func()
-	systrayExit   func()
-	menuItems     = make(map[int32]*MenuItem)
-	menuItemsLock sync.RWMutex
+// SessionEvent values.
+const (
+	SesConsoleConnect    SessionEvent = iota + 0x1 // WTS_CONSOLE_CONNECT (0x1)
+	SesConsoleDisconnect                           // WTS_CONSOLE_DISCONNECT (0x2)
+	SesRemoteConnect                               // WTS_REMOTE_CONNECT (0x3)
+	SesRemoteDisconnect                            // WTS_REMOTE_DISCONNECT (0x4)
+	SesLogon                                       // WTS_SESSION_LOGON (0x5)
+	SesLogoff                                      // WTS_SESSION_LOGOFF (0x6)
+	SesLock                                        // WTS_SESSION_LOCK (0x7)
+	SesUnlock                                      // WTS_SESSION_UNLOCK (0x8)
+	SesRemoteControl                               // WTS_SESSION_REMOTE_CONTROL (0x9)
+)
+
+func (e SessionEvent) String() string {
+	res := "UNKNOWN"
+	switch e {
+	case SesConsoleConnect:
+		res = "WTS_CONSOLE_CONNECT (0x1)"
+	case SesConsoleDisconnect:
+		res = "WTS_CONSOLE_DISCONNECT (0x2)"
+	case SesRemoteConnect:
+		res = "WTS_REMOTE_CONNECT (0x3)"
+	case SesRemoteDisconnect:
+		res = "WTS_REMOTE_DISCONNECT (0x4)"
+	case SesLogon:
+		res = "WTS_SESSION_LOGON (0x5)"
+	case SesLogoff:
+		res = "WTS_SESSION_LOGOFF (0x6)"
+	case SesLock:
+		res = "WTS_SESSION_LOCK (0x7)"
+	case SesUnlock:
+		res = "WTS_SESSION_UNLOCK (0x8)"
+	case SesRemoteControl:
+		res = "WTS_SESSION_REMOTE_CONTROL (0x9)"
+	}
+	return res
+}
+
+var (
+	systrayReady   func()
+	systrayExit    func()
+	systraySession func(SessionEvent)
+	menuItems      = make(map[int32]*MenuItem)
+	menuItemsLock  sync.RWMutex
 
 	currentID = int32(-1)
 )
@@ -53,7 +91,7 @@ var (
 // callback.
 // It blocks until systray.Quit() is called.
 // Should be called at the very beginning of main() to lock at main thread.
-func Run(onReady func(), onExit func()) {
+func Run(onReady func(), onExit func(), onSessionEvent func(SessionEvent)) {
 	runtime.LockOSThread()
 	atomic.StoreInt64(&hasStarted, 1)
 
@@ -77,6 +115,11 @@ func Run(onReady func(), onExit func()) {
 		onExit = func() {}
 	}
 	systrayExit = onExit
+
+	if onSessionEvent == nil {
+		onSessionEvent = func(SessionEvent) {}
+	}
+	systraySession = onSessionEvent
 
 	nativeLoop()
 }
@@ -161,7 +204,7 @@ func (item *MenuItem) Uncheck() {
 	item.update()
 }
 
-// update propogates changes on a menu item to systray
+// update propagates changes on a menu item to systray
 func (item *MenuItem) update() {
 	menuItemsLock.Lock()
 	defer menuItemsLock.Unlock()

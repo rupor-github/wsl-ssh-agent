@@ -1,11 +1,13 @@
 // +build windows
 
+//nolint
 package systray
 
 import (
 	"crypto/md5"
 	"encoding/hex"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,36 +20,39 @@ import (
 // Helpful sources: https://github.com/golang/exp/blob/master/shiny/driver/internal/win32
 
 var (
-	k32                    = windows.NewLazySystemDLL("Kernel32.dll")
-	s32                    = windows.NewLazySystemDLL("Shell32.dll")
-	u32                    = windows.NewLazySystemDLL("User32.dll")
-	pGetModuleHandle       = k32.NewProc("GetModuleHandleW")
-	pShellNotifyIcon       = s32.NewProc("Shell_NotifyIconW")
-	pCreatePopupMenu       = u32.NewProc("CreatePopupMenu")
-	pCreateWindowEx        = u32.NewProc("CreateWindowExW")
-	pDefWindowProc         = u32.NewProc("DefWindowProcW")
-	pDeleteMenu            = u32.NewProc("DeleteMenu")
-	pDestroyWindow         = u32.NewProc("DestroyWindow")
-	pDispatchMessage       = u32.NewProc("DispatchMessageW")
-	pGetCursorPos          = u32.NewProc("GetCursorPos")
-	pGetMenuItemID         = u32.NewProc("GetMenuItemID")
-	pGetMessage            = u32.NewProc("GetMessageW")
-	pInsertMenuItem        = u32.NewProc("InsertMenuItemW")
-	pLoadIcon              = u32.NewProc("LoadIconW")
-	pLoadImage             = u32.NewProc("LoadImageW")
-	pLoadCursor            = u32.NewProc("LoadCursorW")
-	pPostMessage           = u32.NewProc("PostMessageW")
-	pPostQuitMessage       = u32.NewProc("PostQuitMessage")
-	pRegisterClass         = u32.NewProc("RegisterClassExW")
-	pRegisterWindowMessage = u32.NewProc("RegisterWindowMessageW")
-	pSetForegroundWindow   = u32.NewProc("SetForegroundWindow")
-	pSetMenuInfo           = u32.NewProc("SetMenuInfo")
-	pSetMenuItemInfo       = u32.NewProc("SetMenuItemInfoW")
-	pShowWindow            = u32.NewProc("ShowWindow")
-	pTrackPopupMenu        = u32.NewProc("TrackPopupMenu")
-	pTranslateMessage      = u32.NewProc("TranslateMessage")
-	pUnregisterClass       = u32.NewProc("UnregisterClassW")
-	pUpdateWindow          = u32.NewProc("UpdateWindow")
+	k32                            = windows.NewLazySystemDLL("Kernel32.dll")
+	s32                            = windows.NewLazySystemDLL("Shell32.dll")
+	u32                            = windows.NewLazySystemDLL("User32.dll")
+	wts32                          = windows.NewLazySystemDLL("Wtsapi32.dll")
+	pGetModuleHandle               = k32.NewProc("GetModuleHandleW")
+	pShellNotifyIcon               = s32.NewProc("Shell_NotifyIconW")
+	pCreatePopupMenu               = u32.NewProc("CreatePopupMenu")
+	pCreateWindowEx                = u32.NewProc("CreateWindowExW")
+	pDefWindowProc                 = u32.NewProc("DefWindowProcW")
+	pDeleteMenu                    = u32.NewProc("DeleteMenu")
+	pDestroyWindow                 = u32.NewProc("DestroyWindow")
+	pDispatchMessage               = u32.NewProc("DispatchMessageW")
+	pGetCursorPos                  = u32.NewProc("GetCursorPos")
+	pGetMenuItemID                 = u32.NewProc("GetMenuItemID")
+	pGetMessage                    = u32.NewProc("GetMessageW")
+	pInsertMenuItem                = u32.NewProc("InsertMenuItemW")
+	pLoadIcon                      = u32.NewProc("LoadIconW")
+	pLoadImage                     = u32.NewProc("LoadImageW")
+	pLoadCursor                    = u32.NewProc("LoadCursorW")
+	pPostMessage                   = u32.NewProc("PostMessageW")
+	pPostQuitMessage               = u32.NewProc("PostQuitMessage")
+	pRegisterClass                 = u32.NewProc("RegisterClassExW")
+	pRegisterWindowMessage         = u32.NewProc("RegisterWindowMessageW")
+	pSetForegroundWindow           = u32.NewProc("SetForegroundWindow")
+	pSetMenuInfo                   = u32.NewProc("SetMenuInfo")
+	pSetMenuItemInfo               = u32.NewProc("SetMenuItemInfoW")
+	pShowWindow                    = u32.NewProc("ShowWindow")
+	pTrackPopupMenu                = u32.NewProc("TrackPopupMenu")
+	pTranslateMessage              = u32.NewProc("TranslateMessage")
+	pUnregisterClass               = u32.NewProc("UnregisterClassW")
+	pUpdateWindow                  = u32.NewProc("UpdateWindow")
+	pRegisterSessionNotification   = wts32.NewProc("WTSRegisterSessionNotification")
+	pUnRegisterSessionNotification = wts32.NewProc("WTSUnRegisterSessionNotification")
 )
 
 // Contains window class information.
@@ -175,6 +180,8 @@ type winTray struct {
 	wmTaskbarCreated uint32
 
 	visibleItems []uint32
+
+	sessionRegistered bool
 }
 
 // Loads an image from file and shows it in tray.
@@ -236,11 +243,12 @@ var wt winTray
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633573(v=vs.85).aspx
 func (t *winTray) wndProc(hWnd windows.Handle, message uint32, wParam, lParam uintptr) (lResult uintptr) {
 	const (
-		WM_COMMAND    = 0x0111
-		WM_DESTROY    = 0x0002
-		WM_ENDSESSION = 0x16
-		WM_RBUTTONUP  = 0x0205
-		WM_LBUTTONUP  = 0x0202
+		WM_COMMAND           = 0x0111
+		WM_DESTROY           = 0x0002
+		WM_ENDSESSION        = 0x16
+		WM_RBUTTONUP         = 0x0205
+		WM_LBUTTONUP         = 0x0202
+		WM_WTSSESSION_CHANGE = 0x02B1
 	)
 	switch message {
 	case WM_COMMAND:
@@ -249,6 +257,12 @@ func (t *winTray) wndProc(hWnd windows.Handle, message uint32, wParam, lParam ui
 			systrayMenuItemSelected(menuId)
 		}
 	case WM_DESTROY:
+		if t.sessionRegistered {
+			unregistered, _, _ := pUnRegisterSessionNotification.Call(uintptr(hWnd))
+			if unregistered != 0 {
+				t.sessionRegistered = false
+			}
+		}
 		// same as WM_ENDSESSION, but throws 0 exit code after all
 		defer pPostQuitMessage.Call(uintptr(int32(0)))
 		fallthrough
@@ -264,6 +278,9 @@ func (t *winTray) wndProc(hWnd windows.Handle, message uint32, wParam, lParam ui
 		}
 	case t.wmTaskbarCreated: // on explorer.exe restarts
 		t.nid.add()
+	case WM_WTSSESSION_CHANGE:
+		systraySession(SessionEvent(wParam))
+		fallthrough
 	default:
 		// Calls the default window procedure to provide default processing for any window messages that an application does not process.
 		// https://msdn.microsoft.com/en-us/library/windows/desktop/ms633572(v=vs.85).aspx
@@ -300,6 +317,7 @@ func (t *winTray) initInstance() error {
 		CS_VREDRAW = 0x0001
 	)
 	const NIF_MESSAGE = 0x00000001
+	const NOTIFY_FOR_THIS_SESSION = 0
 
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms644931(v=vs.85).aspx
 	const WM_USER = 0x0400
@@ -391,6 +409,15 @@ func (t *winTray) initInstance() error {
 	pUpdateWindow.Call(
 		uintptr(t.window),
 	)
+
+	registered, _, err := pRegisterSessionNotification.Call(
+		uintptr(t.window),
+		uintptr(NOTIFY_FOR_THIS_SESSION),
+	)
+	if registered == 0 {
+		return err
+	}
+	t.sessionRegistered = true
 
 	t.nid = &notifyIconData{
 		Wnd:             windows.Handle(t.window),
@@ -596,12 +623,12 @@ func (t *winTray) getVisibleItemIndex(val int32) int {
 
 func nativeLoop() {
 	if err := wt.initInstance(); err != nil {
-		log.Errorf("Unable to init instance: %v", err)
+		log.Printf("Unable to init instance: %v", err)
 		return
 	}
 
 	if err := wt.createMenu(); err != nil {
-		log.Errorf("Unable to create menu: %v", err)
+		log.Printf("Unable to create menu: %v", err)
 		return
 	}
 
@@ -630,7 +657,7 @@ func nativeLoop() {
 		// https://msdn.microsoft.com/en-us/library/windows/desktop/ms644936(v=vs.85).aspx
 		switch int32(ret) {
 		case -1:
-			log.Errorf("Error at message loop: %v", err)
+			log.Printf("Error at message loop: %v", err)
 			return
 		case 0:
 			return
@@ -662,13 +689,13 @@ func SetIcon(iconBytes []byte) {
 
 	if _, err := os.Stat(iconFilePath); os.IsNotExist(err) {
 		if err := ioutil.WriteFile(iconFilePath, iconBytes, 0644); err != nil {
-			log.Errorf("Unable to write icon data to temp file: %v", err)
+			log.Printf("Unable to write icon data to temp file: %v", err)
 			return
 		}
 	}
 
 	if err := wt.setIcon(iconFilePath); err != nil {
-		log.Errorf("Unable to set icon: %v", err)
+		log.Printf("Unable to set icon: %v", err)
 		return
 	}
 }
@@ -687,7 +714,7 @@ func (item *MenuItem) SetIcon(iconBytes []byte) {
 // only available on Mac and Windows.
 func SetTooltip(tooltip string) {
 	if err := wt.setTooltip(tooltip); err != nil {
-		log.Errorf("Unable to set tooltip: %v", err)
+		log.Printf("Unable to set tooltip: %v", err)
 		return
 	}
 }
@@ -695,7 +722,7 @@ func SetTooltip(tooltip string) {
 func addOrUpdateMenuItem(item *MenuItem) {
 	err := wt.addOrUpdateMenuItem(item.id, item.title, item.disabled, item.checked)
 	if err != nil {
-		log.Errorf("Unable to addOrUpdateMenuItem: %v", err)
+		log.Printf("Unable to addOrUpdateMenuItem: %v", err)
 		return
 	}
 }
@@ -703,7 +730,7 @@ func addOrUpdateMenuItem(item *MenuItem) {
 func addSeparator(id int32) {
 	err := wt.addSeparatorMenuItem(id)
 	if err != nil {
-		log.Errorf("Unable to addSeparator: %v", err)
+		log.Printf("Unable to addSeparator: %v", err)
 		return
 	}
 }
@@ -711,7 +738,7 @@ func addSeparator(id int32) {
 func hideMenuItem(item *MenuItem) {
 	err := wt.hideMenuItem(item.id)
 	if err != nil {
-		log.Errorf("Unable to hideMenuItem: %v", err)
+		log.Printf("Unable to hideMenuItem: %v", err)
 		return
 	}
 }

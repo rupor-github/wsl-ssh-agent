@@ -14,15 +14,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/Microsoft/go-winio"
 	si "github.com/allan-simon/go-singleinstance"
-	"github.com/getlantern/systray"
 
 	"github.com/rupor-github/wsl-ssh-agent/citrus"
 	"github.com/rupor-github/wsl-ssh-agent/misc"
 	"github.com/rupor-github/wsl-ssh-agent/static"
+	"github.com/rupor-github/wsl-ssh-agent/systray"
 	"github.com/rupor-github/wsl-ssh-agent/util"
 )
 
@@ -37,6 +38,7 @@ var (
 	// Program arguments
 	debug      bool
 	help       bool
+	ignorelock bool
 	socketName string
 	pipeName   string
 	setenv     bool
@@ -45,7 +47,9 @@ var (
 		Port:  2489,
 		Allow: "0.0.0.0/0,::/0",
 	}
-	cli = flag.NewFlagSet(title, flag.ContinueOnError)
+	usage  string
+	locked int32
+	cli    = flag.NewFlagSet(title, flag.ContinueOnError)
 )
 
 func onReady() {
@@ -73,6 +77,18 @@ func onReady() {
 			}
 		}
 	}()
+}
+
+func onSession(e systray.SessionEvent) {
+	if debug {
+		log.Printf("Session event %s", e)
+	}
+	switch e {
+	case systray.SesLock:
+		atomic.StoreInt32(&locked, 1)
+	case systray.SesUnlock:
+		atomic.StoreInt32(&locked, 0)
+	}
 }
 
 func onExit() {
@@ -137,15 +153,21 @@ func serve(ln net.Listener, pipeName string, query func(name string, req []byte)
 					log.Printf("[%s] Got request for query: %d)", handle, len(buf))
 				}
 
-				res, err := query(pipeName, append(lenBuf, buf...))
-				if err != nil {
-					// If for some reason talking to ssh-agent.exe failed send back error
-					if debug {
-						log.Printf("[%s] query error '%s'", handle, err)
-					}
+				var res []byte
+				if !ignorelock && atomic.LoadInt32(&locked) == 1 {
+					log.Print("Session is locked")
 					res = badResponse[:]
-				} else if debug {
-					log.Printf("[%s] Got query response: %d bytes", handle, len(res))
+				} else {
+					res, err = query(pipeName, append(lenBuf, buf...))
+					if err != nil {
+						// If for some reason talking to ssh-agent.exe failed send back error
+						if debug {
+							log.Printf("[%s] query error '%s'", handle, err)
+						}
+						res = badResponse[:]
+					} else if debug {
+						log.Printf("[%s] Got query response: %d bytes", handle, len(res))
+					}
 				}
 
 				_, err = conn.Write(res)
@@ -247,14 +269,15 @@ func run() (err error) {
 		systray.Quit()
 	}()
 
-	systray.Run(onReady, onExit)
+	systray.Run(onReady, onExit, onSession)
 	return nil
 }
 
 func main() {
 
 	// Redirect all logging to OutputDebugString()
-	log.SetOutput(util.NewDebugWriter())
+	dlog := util.NewDebugWriter()
+	log.SetOutput(dlog)
 	log.SetPrefix("[" + title + "] ")
 	log.SetFlags(0)
 
@@ -263,32 +286,40 @@ func main() {
 	cli.StringVar(&socketName, "socket", "", fmt.Sprintf("Auth socket `path` (max %d characters)", util.MaxNameLen))
 	cli.StringVar(&pipeName, "pipe", "", "Pipe `name` used by Windows ssh-agent.exe")
 	cli.StringVar(&envName, "envname", "SSH_AUTH_SOCK", "Environment variable `name` to hold socket path")
-	cli.BoolVar(&setenv, "setenv", false, "Export environment variable with 'envname' and modify WSLENV.")
+	cli.BoolVar(&setenv, "setenv", false, "Export environment variable with 'envname' and modify WSLENV")
+	cli.BoolVar(&ignorelock, "nolock", false, "Provide access to ss-agent.exe even when user session is locked")
 	cli.BoolVar(&help, "help", false, "Show help")
 	cli.BoolVar(&debug, "debug", false, "Enable verbose debug logging")
 	cli.Var(&lemon, "lemonade", "Semicolon separated `list` of lemonade \"server\" options (TCP port, Allow IP Range, Line Endings)")
 
-	cli.Usage = func() {} // do not show anything while parsing
+	// Build usage string
+	var buf strings.Builder
+	cli.SetOutput(&buf)
+	fmt.Fprintf(&buf, "\n%s\n\nVersion:\n\t%s (%s)\n\t%s\n\n", tooltip, misc.GetVersion(), runtime.Version(), LastGitCommit)
+	fmt.Fprintf(&buf, "Usage:\n\t%s [options]\n\nOptions:\n\n", title)
+	cli.PrintDefaults()
+	usage = buf.String()
+	cli.SetOutput(dlog)
+
+	// do not show usage while parsing arguments
+	cli.Usage = func() {}
 	if err := cli.Parse(os.Args[1:]); err != nil {
 		util.ShowOKMessage(util.MsgError, title, err.Error())
 		os.Exit(1)
 	}
+
 	cli.Usage = func() {
-		var buf strings.Builder
-		cli.SetOutput(&buf)
-		fmt.Fprintf(&buf, "\n%s\n\nVersion:\n\t%s (%s)\n\t%s\n\n", tooltip, misc.GetVersion(), runtime.Version(), LastGitCommit)
-		fmt.Fprintf(&buf, "Usage:\n\t%s [options]\n\nOptions:\n\n", title)
-		cli.PrintDefaults()
+		text := usage
 		if len(socketName) > 0 {
-			_, _ = buf.WriteString(fmt.Sprintf("\nSocket path:\n  %s", socketName))
+			text += fmt.Sprintf("\nSocket path:\n  %s", socketName)
 		}
 		if len(pipeName) > 0 {
-			_, _ = buf.WriteString(fmt.Sprintf("\nPipe name:\n  %s", pipeName))
+			text += fmt.Sprintf("\nPipe name:\n  %s", pipeName)
 		}
 		if lemon.IsSet() {
-			_, _ = buf.WriteString(fmt.Sprintf("\nLemonade stand:\n  %s", lemon.String()))
+			text += fmt.Sprintf("\nLemonade stand:\n  %s", lemon.String())
 		}
-		util.ShowOKMessage(util.MsgInformation, title, buf.String())
+		util.ShowOKMessage(util.MsgInformation, title, text)
 	}
 
 	if help {

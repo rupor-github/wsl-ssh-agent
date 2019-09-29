@@ -18,6 +18,7 @@ linters:
     - dupl
     - gochecknoglobals
     - gochecknoinits
+    - whitespace
   fast: false
 
 linters-settings:
@@ -27,6 +28,10 @@ linters-settings:
     line-length: 180
     # tab width in spaces. Default to 1.
     tab-width: 4
+
+  funlen:
+    lines: 100
+    statements: 60
 
 issues:
   exclude-rules:
