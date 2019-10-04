@@ -101,7 +101,7 @@ Lemonade stand:
   2489;127.0.0.1/24
 ```
 
-For security reasons unless `-nolock` argument is specified program will refuse access to `ssh-agen.exe` pipe when user session is locked, so any long running background jobs in WSL which require ssh may fail.
+For security reasons unless `-nolock` argument is specified program will refuse access to `ssh-agent.exe` pipe when user session is locked, so any long running background jobs in WSL which require ssh may fail.
 
 ## Options
 
