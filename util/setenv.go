@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -17,13 +18,31 @@ const (
 	wslName = "WSLENV"
 )
 
-func notifySystem() {
+func notifySystem(debug bool) {
 	var (
 		mod             = syscall.NewLazyDLL("user32")
-		proc            = mod.NewProc("SendMessageW")
+		proc            = mod.NewProc("SendMessageTimeoutW")
 		wmSETTINGCHANGE = uint32(0x001A)
+		smtoABORTIFHUNG = uint32(0x0002)
+		smtoNORMAL      = uint32(0x0000)
 	)
-	_, _, _ = proc.Call(uintptr(windows.InvalidHandle), uintptr(wmSETTINGCHANGE), 0, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("Environment"))))
+
+	start := time.Now()
+	if debug {
+		log.Printf("Broadcasting environment change. From %s", start)
+	}
+
+	_, _, _ = proc.Call(uintptr(uintptr(windows.InvalidHandle)),
+		uintptr(wmSETTINGCHANGE),
+		0,
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("Environment"))),
+		uintptr(smtoNORMAL|smtoABORTIFHUNG),
+		uintptr(1000),
+		0)
+
+	if debug {
+		log.Printf("Broadcasting environment change. To   %s, Elapsed %s", time.Now(), time.Since(start))
+	}
 }
 
 // PrepareUserEnvironment modifies user environment. It sets SSH_AUTH_SOCK and creates/changes WSLENV to make sure path is
@@ -68,7 +87,7 @@ func PrepareUserEnvironment(name, path string, debug bool) error {
 		log.Printf("Set '%s=%s'", wslName, val)
 	}
 
-	notifySystem()
+	notifySystem(debug)
 	return nil
 }
 
@@ -120,6 +139,6 @@ func CleanUserEnvironment(name string, debug bool) error {
 		}
 	}
 
-	notifySystem()
+	notifySystem(debug)
 	return nil
 }
