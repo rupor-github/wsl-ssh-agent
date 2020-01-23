@@ -22,7 +22,7 @@ build/
 release/
 bin/
 _obj/
-pkg/
+/pkg/
 _test/
 testdata/
 
