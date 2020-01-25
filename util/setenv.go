@@ -32,7 +32,7 @@ func notifySystem(debug bool) {
 		log.Printf("Broadcasting environment change. From %s", start)
 	}
 
-	_, _, _ = proc.Call(uintptr(uintptr(windows.InvalidHandle)),
+	_, _, _ = proc.Call(uintptr(windows.InvalidHandle),
 		uintptr(wmSETTINGCHANGE),
 		0,
 		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("Environment"))),

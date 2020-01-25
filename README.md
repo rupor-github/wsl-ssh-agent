@@ -59,7 +59,7 @@ After that just execute
 	Set-Service -StartupType Automatic ssh-agent
 ```
 
-2. Run `wsl-ssh-agent-gui.exe`. Basically there are several possible scenarios:
+2. Run `wsl-ssh-agent-gui.exe` with arguments which make sense for your usage. Basically there are several ways:
 
 	* Using `-socket` option specify "well known" path on Windows side and then properly specify the same path in every WSL session:
 

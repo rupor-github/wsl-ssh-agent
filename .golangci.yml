@@ -3,9 +3,11 @@ run:
     - build
     - cmake
     - doc
+    - kindlegen
+    - static
+    - testdata
     - tools
     - vendor
-    - util
   tests: false
   issues-exit-code: 0
 
@@ -19,22 +21,31 @@ linters:
     - gochecknoglobals
     - gochecknoinits
     - whitespace
+    - wsl
+    - gomnd
   fast: false
 
 linters-settings:
   lll:
     # max line length, lines longer will be reported. Default is 120.
     # '\t' is counted as 1 character by default, and can be changed with the tab-width option
-    line-length: 180
+    line-length: 185
     # tab width in spaces. Default to 1.
     tab-width: 4
-
+  gofmt:
+    simplify: true
   funlen:
-    lines: 100
-    statements: 60
+    lines: 250
+    statements: 120
+  dogsled:
+    max-blank-identifiers: 3
 
 issues:
   exclude-rules:
     - text: "weak cryptographic primitive"
       linters:
         - gosec
+    - text: "Subprocess launched with function call as argument or cmd arguments"
+      linters:
+        - gosec
+

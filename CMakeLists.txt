@@ -59,7 +59,7 @@ endif()
 
 # Project version number
 set(PRJ_VERSION_MAJOR 1)
-set(PRJ_VERSION_MINOR 4)
+set(PRJ_VERSION_MINOR 41)
 
 if (EXISTS "${PROJECT_SOURCE_DIR}/.git" AND IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
     execute_process(COMMAND ${CMAKE_SOURCE_DIR}/cmake/githash.sh ${GIT_EXECUTABLE}
@@ -155,19 +155,19 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     ########################################################################################################
 
     # Running linters on main target
-    find_program(GO_LINTER golangci-lint)
+    find_program(GO_LINTER golangci-lint PATHS ${PROJECT_BINARY_DIR} NO_DEFAULT_PATH)
     if(NOT GO_LINTER)
-        set(golangci-lint-ver "1.17.1")
+        set(golangci-lint-ver "1.22.2")
         message(STATUS "Preparing golangci-lint ${golangci-lint-ver}")
         file(DOWNLOAD "https://github.com/golangci/golangci-lint/releases/download/v${golangci-lint-ver}/golangci-lint-${golangci-lint-ver}-linux-amd64.tar.gz" ${PROJECT_BINARY_DIR}/golangci-lint.tar.gz
             INACTIVITY_TIMEOUT 60
             TIMEOUT 300
             STATUS DOWNLOAD_RES
-            EXPECTED_HASH SHA256=62693d3351858206af0bfe975f7f79a8ac9124502e8de7906f377c231f37f7d3)
+            EXPECTED_HASH SHA256=109d38cdc89f271392f5a138d6782657157f9f496fd4801956efa2d0428e0cbe)
         list(GET DOWNLOAD_RES 0 RES)
         list(GET DOWNLOAD_RES 1 MSG)
         if(RES)
-            message(FATAL_ERROR, ${MSG})
+            message(FATAL_ERROR "${MSG} : ${RES}")
         endif()
         execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf golangci-lint.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
         execute_process(COMMAND ${CMAKE_COMMAND} -E copy golangci-lint-${golangci-lint-ver}-linux-amd64/golangci-lint golangci-lint WORKING_DIRECTORY ${PROJECT_BINARY_DIR})

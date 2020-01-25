@@ -1881,7 +1881,7 @@ func bindataIconico() (*asset, error) {
 		name: "icon.ico",
 		size: 180194,
 		md5checksum: "",
-		mode: os.FileMode(511),
+		mode: os.FileMode(484),
 		modTime: time.Unix(1567705166, 0),
 	}
 
