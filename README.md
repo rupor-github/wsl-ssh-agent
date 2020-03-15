@@ -135,6 +135,22 @@ Run `wsl-ssh-agent-gui.exe -help`
 	  -socket path
 			Auth socket path (max 108 characters)
 
+## WSL 2 compatibility
+
+At the moment (at least with build 19041.153) AF_UNIX interop does not seems to be working with WSL 2 VMs. Either that or I simply cannot figure out how to make it work. Hopefully this will be sorted out eventually.
+Meantime there is an easy workaround (proposed by multiple people) which does not use wsl-ssh-agent.exe at all and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). Simply add following lines in your .bashrc/.zshrc:
+
+```
+export SSH_AUTH_SOCK=$HOME/.ssh/agent.sock
+ss -a | grep -q $SSH_AUTH_SOCK
+if [ $? -ne 0   ]; then
+    rm -f $SSH_AUTH_SOCK
+    ( setsid socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork EXEC:"$HOME/winhome/.wsl/npiperelay.exe -ei -s //./pipe/openssh-ssh-agent",nofork & ) >/dev/null 2>&1
+fi
+```
+
+Make sure that socat is installed and npiperelay.exe lives on windows partition and path is right. For convinience I will packing pre-build npiperelay.exe with wsl-ssh-agent.
+
 ## Example
 
 Putting it all together nicely - `remote` here refers to your wsl shell or some other box or virtual machine you could `ssh` to. Assuming that [lemonade](https://github.com/rupor-github/lemonade) is in your path on `remote` and you installed [win32yank](https://github.com/equalsraf/win32yank) somewhere in `drvfs` location.
@@ -158,39 +174,14 @@ On `remote` my `tmux.conf` includes following lines:
 # we are relying on WSLENV being set to "USERPROFILE/up" outside of WSL
 
 set -g set-clipboard off
-if-shell 'if [ $(uname -a | grep -c Microsoft) = 1 ]; then true; else false; fi' \
-	`bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/win32yank -i --crlf" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/win32yank -i --crlf"' \
-	'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"'
+bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"
+bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"
 ```
 And my `neovim` configuration file `init.vim` on `remote` has following lines:
 ```
-let s:u_wsl = 1
-let _ = system("uname -a | grep -cq Microsoft")
-if v:shell_error
-	let s:u_wsl = 0
-endif
-
 " ----- Clipboard
 set clipboard+=unnamedplus
-if s:u_wsl
-	" ----- on WSL try to use win32yank if available
-	" ----- we are relying on WSLENV being set to "USERPROFILE/up" outside of WSL
-	let s:win32yank = $USERPROFILE . '/.wsl/win32yank.exe'
-	if filereadable(s:win32yank)
-		let g:clipboard = {
-			\   'name': 'win32yank',
-			\   'copy': {
-			\      '+': s:win32yank . ' -i --crlf',
-			\      '*': s:win32yank . ' -i --crlf',
-			\    },
-			\   'paste': {
-			\      '+': s:win32yank . ' -o --lf',
-			\      '*': s:win32yank . ' -o --lf',
-			\   },
-			\   'cache_enabled': 0,
-			\ }
-	endif
-elseif has("unix")
+if has("unix")
 	" ----- on UNIX ask lemonade to translate line-endings
 	if executable('lemonade')
 		let g:clipboard = {
@@ -215,7 +206,7 @@ Now you could open your WSL in terminal of your choice - mintty, cmd, Windows te
 
 * Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration.
 * Thanks to [Masataka Pocke Kuwabara](https://github.com/pocke) for [lemonade](https://github.com/lemonade-command/lemonade) - a remote utility tool. (copy, paste and open browser) over TCP.
-* Thanks to [equalsraf](https://github.com/equalsraf) for [win32yank](https://github.com/equalsraf/win32yank) - Windows clipboard tool.
+* Thanks to [jstarks](https://github.com/jstarks) for [npiperelay](https://github.com/jstarks/npiperelay) - to access Windows pipes from WSL.
 
 ------------------------------------------------------------------------------
 Licensed under the GNU GPL version 3 or later, http://gnu.org/licenses/gpl.html
