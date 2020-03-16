@@ -169,10 +169,6 @@ RemoteForward 2489 127.0.0.1:2489
 ```
 On `remote` my `tmux.conf` includes following lines:
 ```
-# when on WSL always use win32yank
-# Do not forget to link win32yank in your path like so: ln -s $USERPROFILE/.wsl/win32yank.exe ~/.local/bin/win32yank
-# we are relying on WSLENV being set to "USERPROFILE/up" outside of WSL
-
 set -g set-clipboard off
 bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"
 bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/.local/bin/lemonade copy"
