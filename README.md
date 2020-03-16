@@ -4,7 +4,7 @@
 		Helper to interface with Windows ssh-agent.exe service from WSL, replacement for ssh-agent-wsl.
     </p>
     <p align="center">
-        <a href="https://godoc.org/github.com/rupor-github/wsl-ssh-agent"><img alt="GoDoc" src="https://img.shields.io/badge/godoc-reference-blue.svg" /></a>
+        <a href="https://pkg.go.dev/mod/github.com/rupor-github/wsl-ssh-agent/?tab=packages"><img alt="GoDoc" src="https://img.shields.io/badge/godoc-reference-blue.svg" /></a>
         <a href="https://goreportcard.com/report/github.com/rupor-github/wsl-ssh-agent"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/rupor-github/wsl-ssh-agent" /></a>
     </p>
     <hr>
