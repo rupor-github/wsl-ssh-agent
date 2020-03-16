@@ -202,7 +202,7 @@ Now you could open your WSL in terminal of your choice - mintty, cmd, Windows te
 
 * Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration.
 * Thanks to [Masataka Pocke Kuwabara](https://github.com/pocke) for [lemonade](https://github.com/lemonade-command/lemonade) - a remote utility tool. (copy, paste and open browser) over TCP.
-* Thanks to [jstarks](https://github.com/jstarks) for [npiperelay](https://github.com/jstarks/npiperelay) - access to Windows pipes from WSL.
+* Thanks to [John Starks](https://github.com/jstarks) for [npiperelay](https://github.com/jstarks/npiperelay) - access to Windows pipes from WSL.
 
 ------------------------------------------------------------------------------
 Licensed under the GNU GPL version 3 or later, http://gnu.org/licenses/gpl.html
