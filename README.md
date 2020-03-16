@@ -149,7 +149,7 @@ if [ $? -ne 0   ]; then
 fi
 ```
 
-Make sure that socat is installed and npiperelay.exe lives on windows partition and path is right. For convinience I will packing pre-build npiperelay.exe with wsl-ssh-agent.
+Make sure that socat is installed and npiperelay.exe is on windows partition and path is right. For convinience I will be packing pre-build npiperelay.exe with wsl-ssh-agent.
 
 ## Example
 
@@ -206,7 +206,7 @@ Now you could open your WSL in terminal of your choice - mintty, cmd, Windows te
 
 * Thanks to [Ben Pye](https://github.com/benpye) with his [wsl-ssh-pageant](https://github.com/benpye/wsl-ssh-pageant) for inspiration.
 * Thanks to [Masataka Pocke Kuwabara](https://github.com/pocke) for [lemonade](https://github.com/lemonade-command/lemonade) - a remote utility tool. (copy, paste and open browser) over TCP.
-* Thanks to [jstarks](https://github.com/jstarks) for [npiperelay](https://github.com/jstarks/npiperelay) - to access Windows pipes from WSL.
+* Thanks to [jstarks](https://github.com/jstarks) for [npiperelay](https://github.com/jstarks/npiperelay) - access to Windows pipes from WSL.
 
 ------------------------------------------------------------------------------
 Licensed under the GNU GPL version 3 or later, http://gnu.org/licenses/gpl.html
