@@ -148,8 +148,7 @@ if [ $? -ne 0   ]; then
     ( setsid socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork EXEC:"$HOME/winhome/.wsl/npiperelay.exe -ei -s //./pipe/openssh-ssh-agent",nofork & ) >/dev/null 2>&1
 fi
 ```
-
-Make sure that socat is installed and npiperelay.exe is on windows partition and path is right. For convinience I will be packing pre-build npiperelay.exe with wsl-ssh-agent.
+You *really* have to be on WSL 2 in order for this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l -all -v` to check what is going on. When on WSL 2 make sure that socat is installed and npiperelay.exe is on windows partition and path is right. For convinience I will be packing pre-build npiperelay.exe with wsl-ssh-agent.
 
 ## Example
 
