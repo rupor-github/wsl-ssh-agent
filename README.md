@@ -137,8 +137,8 @@ Run `wsl-ssh-agent-gui.exe -help`
 
 ## WSL 2 compatibility
 
-At the moment (at least with build 19041.153) AF_UNIX interop does not seems to be working with WSL 2 VMs. Either that or I simply cannot figure out how to make it work. Hopefully this will be sorted out eventually.
-Meantime there is an easy workaround (proposed by multiple people) which does not use wsl-ssh-agent.exe at all and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). Simply add following lines in your .bashrc/.zshrc:
+At the moment (at least with build 19041.450) AF_UNIX interop does not seems to be working with WSL2 VMs. Either that or I simply cannot figure out how to make it work. Hopefully this will be sorted out eventually.
+Meantime there is an easy workaround (proposed by multiple people) which does not use wsl-ssh-agent.exe at all and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). Put npiperelay.exe somewhere on devfs for interop to work its magic (I have `winhome ⇒ /mnt/c/Users/rupor` in my $HOME directory for that) and add following lines in your .bashrc/.zshrc:
 
 ```
 export SSH_AUTH_SOCK=$HOME/.ssh/agent.sock
