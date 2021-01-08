@@ -1,26 +1,25 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(wsl-ssh-agent NONE)
-
 message(STATUS "Running cmake version ${CMAKE_VERSION}")
+if (NOT CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "../cmake/win64.toolchain" CACHE STRING "default toolchain" FORCE)
+endif()
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "default to release build type" FORCE)
 endif()
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
+
+project(wsl-ssh-agent NONE)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Generator: ${CMAKE_GENERATOR}")
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(STATUS "********************************************************************************")
-    message(STATUS "*** Do not forget to do \"make deps_vendor\" before switching to Release mode! ***")
-    message(STATUS "********************************************************************************")
-endif()
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 # Release installation directory
 if(NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR "Currently unsuppored environment. CMake willl exit now.")
+else()
+    set(HOST_GOOS linux)
+    set(HOST_GOARCH amd64)
 endif()
 
 if(MSYSTEM_NAME STREQUAL "win32")
@@ -38,7 +37,7 @@ endif()
 set(DEST_DIR "${PROJECT_SOURCE_DIR}/bin")
 message(STATUS "Installation directory: ${DEST_DIR}")
 
-find_package(Go 1.13 REQUIRED)
+find_package(Go 1.15 REQUIRED)
 find_package(Git REQUIRED)
 
 # Make sure we setup go properly
@@ -58,8 +57,9 @@ endif()
 ########################################################################################################
 
 # Project version number
-set(PRJ_VERSION_MAJOR 1)
-set(PRJ_VERSION_MINOR 4.2)
+set(PRJ_VERSION_Major "1")
+set(PRJ_VERSION_Minor "5")
+set(PRJ_VERSION_Patch "0")
 
 if (EXISTS "${PROJECT_SOURCE_DIR}/.git" AND IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
     execute_process(COMMAND ${CMAKE_SOURCE_DIR}/cmake/githash.sh ${GIT_EXECUTABLE}
@@ -74,21 +74,20 @@ else()
     set(GIT_HASH "no-git")
 endif()
 configure_file("${PROJECT_SOURCE_DIR}/cmake/version.go.in" "${PROJECT_SOURCE_DIR}/misc/version.go")
+configure_file("${PROJECT_SOURCE_DIR}/cmake/agent.rc.in" "${PROJECT_SOURCE_DIR}/resources.rc")
+configure_file("${PROJECT_SOURCE_DIR}/cmake/agent.xml.in" "${PROJECT_SOURCE_DIR}/manifest.xml")
 
 # distribute history
-execute_process(COMMAND ${CMAKE_COMMAND} -E env ${GIT_EXECUTABLE} changelog --all --tag "${PRJ_VERSION_MAJOR}.${PRJ_VERSION_MINOR}" --stdout OUTPUT_FILE ${PROJECT_BINARY_DIR}/changelog.txt ERROR_QUIET)
+execute_process(COMMAND ${CMAKE_COMMAND} -E env ${GIT_EXECUTABLE} changelog --all --tag "v${PRJ_VERSION_Major}.${PRJ_VERSION_Minor}.${PRJ_VERSION_Patch}" --stdout OUTPUT_FILE ${PROJECT_BINARY_DIR}/changelog.txt ERROR_QUIET)
 install(FILES ${PROJECT_BINARY_DIR}/changelog.txt DESTINATION ${DEST_DIR} CONFIGURATIONS Release)
 
-message(STATUS "Building version \"${PRJ_VERSION_MAJOR}.${PRJ_VERSION_MINOR}\" git \"${GIT_HASH}\"")
+message(STATUS "Building version \"${PRJ_VERSION_Major}.${PRJ_VERSION_Minor}.${PRJ_VERSION_Patch}\" git \"${GIT_HASH}\"")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     # Create git pre-commit hook to check formatting before commit
     if(EXISTS "${PROJECT_SOURCE_DIR}/.git" AND IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
         execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/cmake/pre-commit ${PROJECT_SOURCE_DIR}/.git/hooks/. WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
     endif()
-endif()
-if(EXISTS "${PROJECT_SOURCE_DIR}/${KINDLEGEN}")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/${KINDLEGEN} ${PROJECT_BINARY_DIR}/.)
 endif()
 
 ########################################################################################################
@@ -106,14 +105,24 @@ endif()
 ########################################################################################################
 
 add_custom_target(bin_agent ALL
-    DEPENDS ${PROJECT_SOURCE_DIR}/static/files.go
+    DEPENDS ${PROJECT_SOURCE_DIR}/resources.syso
     COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH}
         ${GO_EXECUTABLE} build -trimpath -o ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX}
-        -ldflags='-X main.LastGitCommit=${GIT_HASH} -H=windowsgui'
+        -ldflags='-H=windowsgui'
         ${GO_MOD_ARGS}
     COMMENT "Building wsl-ssh-agent-gui..."
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 install(PROGRAMS ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX} DESTINATION ${DEST_DIR} CONFIGURATIONS Release)
+
+add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/resources.syso
+     DEPENDS ${PROJECT_SOURCE_DIR}/resources.rc
+         ${PROJECT_SOURCE_DIR}/manifest.xml
+         ${PROJECT_SOURCE_DIR}/icon.ico
+     COMMAND ${CMAKE_RC_COMPILER} -O coff
+         -o ${PROJECT_SOURCE_DIR}/resources.syso
+         -i ${PROJECT_SOURCE_DIR}/resources.rc
+     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+     COMMENT "Building wsl-ssh-agent-gui resources...")
 
 ########################################################################################################
 # Development
@@ -122,48 +131,20 @@ install(PROGRAMS ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFI
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
     ########################################################################################################
-    # Code generation - on host platform only
-    ########################################################################################################
-
-    add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/go-bindata
-        COMMAND GOPATH=${GO_PATH} GO111MODULE=on
-            ${GO_EXECUTABLE} build -o ${PROJECT_BINARY_DIR}/go-bindata
-            github.com/shuLhan/go-bindata/cmd/go-bindata
-        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-        COMMENT "Building go-bindata executable...")
-    add_custom_target(bin_go-bindata
-        DEPENDS ${PROJECT_BINARY_DIR}/go-bindata)
-
-    file(GLOB_RECURSE SRCS_STATIC LIST_DIRECTORIES false ${PROJECT_SOURCE_DIR}/static/*)
-    list(REMOVE_ITEM SRCS_STATIC ${PROJECT_SOURCE_DIR}/static/files.go ${PROJECT_SOURCE_DIR}/static/doc.go)
-    add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/static/files.go
-        DEPENDS ${PROJECT_BINARY_DIR}/go-bindata ${SRCS_STATIC}
-        # -nocompress
-        COMMAND GOPATH=${GO_PATH}
-            ${PROJECT_BINARY_DIR}/go-bindata
-                -prefix ${PROJECT_SOURCE_DIR}/static/
-                -ignore static/files.go
-                -ignore static/doc.go
-                -pkg static
-                -o static/files.go
-                ${PROJECT_SOURCE_DIR}/static/...
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        COMMENT "Generating Go resources for static assets")
-
-    ########################################################################################################
     # Go linter
     ########################################################################################################
+
 
     # Running linters on main target
     find_program(GO_LINTER golangci-lint PATHS ${PROJECT_BINARY_DIR} NO_DEFAULT_PATH)
     if(NOT GO_LINTER)
-        set(golangci-lint-ver "1.22.2")
+        set(golangci-lint-ver "1.33.0")
         message(STATUS "Preparing golangci-lint ${golangci-lint-ver}")
         file(DOWNLOAD "https://github.com/golangci/golangci-lint/releases/download/v${golangci-lint-ver}/golangci-lint-${golangci-lint-ver}-linux-amd64.tar.gz" ${PROJECT_BINARY_DIR}/golangci-lint.tar.gz
             INACTIVITY_TIMEOUT 60
             TIMEOUT 300
             STATUS DOWNLOAD_RES
-            EXPECTED_HASH SHA256=109d38cdc89f271392f5a138d6782657157f9f496fd4801956efa2d0428e0cbe)
+            EXPECTED_HASH SHA256=e2d6082f1df53c5d2c280765000f9e82783ea909ba419c6c4e172936b076031e)
         list(GET DOWNLOAD_RES 0 RES)
         list(GET DOWNLOAD_RES 1 MSG)
         if(RES)
@@ -178,7 +159,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
     add_custom_target(lint
         COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH} ${GO_LINTER} run
-        # COMMAND GOPATH=${GO_PATH} GO111MODULE=on ${GO_LINTER} run
         COMMENT "Mega-linting project with ${GO_LINTER}..."
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
@@ -193,17 +173,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         COMMENT "Cleaning dependencies (go mod tidy)"
         VERBATIM)
 
-    add_custom_target(deps_verify
-        SOURCES ${PROJECT_SOURCE_DIR}/go.mod
-        COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH} ${GO_EXECUTABLE} mod verify
-        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-        COMMENT "Verifying dependencies (go mod verify)"
-        VERBATIM)
-
     add_custom_target(deps_vendor
         SOURCES ${PROJECT_SOURCE_DIR}/go.mod
         COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH} ${GO_EXECUTABLE} mod vendor
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         COMMENT "Creating vendor directory (go mod vendor)"
         VERBATIM)
+
 endif()

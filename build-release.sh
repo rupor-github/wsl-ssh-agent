@@ -7,7 +7,7 @@ _dist=bin
 	mkdir release
 	cd release
 
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/win64.toolchain ..
+    cmake -DCMAKE_BUILD_TYPE=Release ..
 	make install
 )
 

@@ -1,6 +1,5 @@
-*.o
-*.a
 *.exe
+*.exe~
 *.dll
 *.so
 *.dylib
@@ -9,32 +8,14 @@
 *.prof
 *.mprof
 *.log
-*.svg
 *.7z
+*.syso
 
-*.[568vq]
-[568vq].out
-
-.undodir/
-.idea/
-.vscode/
-build/
 release/
+build/
 bin/
-_obj/
-/pkg/
-_test/
-testdata/
 
 # build specific
 misc/version.go
-
-*.cgo1.go
-*.cgo2.c
-_cgo_defun.c
-_cgo_gotypes.go
-_cgo_export.*
-_testmain.go
-.session.vim
-.set-project-env
-*.swp
+resources.rc
+manifest.xml

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"errors"
 	"flag"
@@ -15,14 +16,13 @@ import (
 	"runtime"
 	"strings"
 	"sync/atomic"
-	"syscall"
 
 	"github.com/Microsoft/go-winio"
 	si "github.com/allan-simon/go-singleinstance"
+	clip "github.com/rupor-github/gclpr/server"
+	"golang.org/x/sys/windows"
 
-	"github.com/rupor-github/wsl-ssh-agent/citrus"
 	"github.com/rupor-github/wsl-ssh-agent/misc"
-	"github.com/rupor-github/wsl-ssh-agent/static"
 	"github.com/rupor-github/wsl-ssh-agent/systray"
 	"github.com/rupor-github/wsl-ssh-agent/util"
 )
@@ -33,34 +33,29 @@ const (
 )
 
 var (
-	// LastGitCommit is used during build to inject git sha
-	LastGitCommit string
-	// Program arguments
+	// Program arguments.
 	debug      bool
 	help       bool
 	ignorelock bool
 	socketName string
 	pipeName   string
 	setenv     bool
+	clipPort   int
+	clipLE     string
+	clipCancel context.CancelFunc
+	clipCtx    context.Context
+	clipHelp   string
 	envName    = "SSH_AUTH_SOCK"
-	lemon      = citrus.ParamsValue{
-		Port:  2489,
-		Allow: "0.0.0.0/0,::/0",
-	}
-	usage  string
-	locked int32
-	cli    = flag.NewFlagSet(title, flag.ContinueOnError)
+	usage      string
+	locked     int32
+	cli        = flag.NewFlagSet(title, flag.ContinueOnError)
 )
 
 func onReady() {
 
+	systray.SetIcon(systray.MakeIntResource(1000))
 	systray.SetTitle(title)
 	systray.SetTooltip(tooltip)
-
-	icon, err := static.Asset("icon.ico")
-	if err == nil {
-		systray.SetIcon(icon)
-	}
 
 	help := systray.AddMenuItem("About", "Shows application help")
 	systray.AddSeparator()
@@ -80,18 +75,19 @@ func onReady() {
 }
 
 func onSession(e systray.SessionEvent) {
-	if debug {
-		log.Printf("Session event %s", e)
-	}
+	log.Printf("Session event %s", e)
 	switch e {
 	case systray.SesLock:
 		atomic.StoreInt32(&locked, 1)
 	case systray.SesUnlock:
 		atomic.StoreInt32(&locked, 0)
+	default:
 	}
 }
 
 func onExit() {
+	// stop servicing clipboard and uri requests
+	clipCancel()
 	log.Print("Exiting systray")
 }
 
@@ -115,43 +111,33 @@ func serve(ln net.Listener, pipeName string, query func(name string, req []byte)
 			log.Printf("Listener Accept error on %s - '%s'", pipeName, err)
 			return
 		}
-		go func(conn net.Conn, debug bool) {
+		go func(conn net.Conn) {
 			defer conn.Close()
 
 			handle := fmt.Sprintf("%v", conn)
 
-			if debug {
-				log.Printf("[%s] Incoming: %s", handle, conn.LocalAddr())
-			}
+			log.Printf("[%s] Incoming: %s", handle, conn.LocalAddr())
 
 			reader := bufio.NewReader(conn)
 			for {
-				if debug {
-					log.Printf("[%s] Reading loop", handle)
-				}
+				log.Printf("[%s] Reading loop", handle)
 
 				lenBuf := make([]byte, 4)
 				_, err := io.ReadFull(reader, lenBuf)
 				if err != nil {
-					if debug {
-						log.Printf("[%s] ReadFull error '%s'", handle, err)
-					}
+					log.Printf("[%s] ReadFull error '%s'", handle, err)
 					return
-				} else if debug {
-					log.Printf("[%s] Got msg length for request to ssh-agent.exe: %s)", handle, fmt.Sprintf("%+v", lenBuf))
 				}
+				log.Printf("[%s] Got msg length for request to ssh-agent.exe: %s)", handle, fmt.Sprintf("%+v", lenBuf))
 
 				l := binary.BigEndian.Uint32(lenBuf)
 				buf := make([]byte, l)
 				_, err = io.ReadFull(reader, buf)
 				if err != nil {
-					if debug {
-						log.Printf("[%s] ReadFull error '%s'", handle, err)
-					}
+					log.Printf("[%s] ReadFull error '%s'", handle, err)
 					return
-				} else if debug {
-					log.Printf("[%s] Got request for query: %d)", handle, len(buf))
 				}
+				log.Printf("[%s] Got request for query: %d)", handle, len(buf))
 
 				var res []byte
 				if !ignorelock && atomic.LoadInt32(&locked) == 1 {
@@ -161,26 +147,20 @@ func serve(ln net.Listener, pipeName string, query func(name string, req []byte)
 					res, err = query(pipeName, append(lenBuf, buf...))
 					if err != nil {
 						// If for some reason talking to ssh-agent.exe failed send back error
-						if debug {
-							log.Printf("[%s] query error '%s'", handle, err)
-						}
+						log.Printf("[%s] query error '%s'", handle, err)
 						res = badResponse[:]
-					} else if debug {
-						log.Printf("[%s] Got query response: %d bytes", handle, len(res))
 					}
+					log.Printf("[%s] Got query response: %d bytes", handle, len(res))
 				}
 
 				_, err = conn.Write(res)
 				if err != nil {
-					if debug {
-						log.Printf("[%s] Conn.Write error '%s'", handle, err)
-					}
+					log.Printf("[%s] Conn.Write error '%s'", handle, err)
 					return
-				} else if debug {
-					log.Printf("[%s] Sent query response back", handle)
 				}
+				log.Printf("[%s] Sent query response back", handle)
 			}
-		}(conn, debug)
+		}(conn)
 	}
 }
 
@@ -189,17 +169,15 @@ func queryAgent(pipeName string, buf []byte) (result []byte, err error) {
 	conn, err := winio.DialPipe(pipeName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to pipe %s: %w", pipeName, err)
-	} else if debug {
-		log.Printf("Connected to %s: %d", pipeName, len(buf))
 	}
 	defer conn.Close()
+	log.Printf("Connected to %s: %d", pipeName, len(buf))
 
 	l, err := conn.Write(buf)
 	if err != nil {
 		return nil, fmt.Errorf("cannot write to pipe %s: %w", pipeName, err)
-	} else if debug {
-		log.Printf("Sent to %s: %d", pipeName, l)
 	}
+	log.Printf("Sent to %s: %d", pipeName, l)
 
 	reader := bufio.NewReader(conn)
 	res := make([]byte, util.MaxAgentMsgLen)
@@ -207,9 +185,8 @@ func queryAgent(pipeName string, buf []byte) (result []byte, err error) {
 	l, err = reader.Read(res)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read from pipe %s: %w", pipeName, err)
-	} else if debug {
-		log.Printf("Received from %s: %d", pipeName, l)
 	}
+	log.Printf("Received from %s: %d", pipeName, l)
 	return res[0:l], nil
 }
 
@@ -229,11 +206,11 @@ func run() (err error) {
 	}
 
 	if setenv {
-		if err := util.PrepareUserEnvironment(envName, socketName, debug); err != nil {
+		if err := util.PrepareUserEnvironment(envName, socketName); err != nil {
 			return fmt.Errorf("unable to prepare user environment: %w", err)
 		}
 		defer func() {
-			if err := util.CleanUserEnvironment(envName, debug); err != nil {
+			if err := util.CleanUserEnvironment(envName); err != nil {
 				log.Printf("Unable to clean user environment: %s", err.Error())
 			}
 		}()
@@ -245,7 +222,7 @@ func run() (err error) {
 
 	_, err = os.Stat(socketName)
 	if err == nil || !os.IsNotExist(err) {
-		err = syscall.Unlink(socketName)
+		err = windows.Unlink(socketName)
 		if err != nil {
 			return fmt.Errorf("failed to unlink socket %s: %w", socketName, err)
 		}
@@ -273,13 +250,40 @@ func run() (err error) {
 	return nil
 }
 
+func clipServe() error {
+
+	clipCtx, clipCancel = context.WithCancel(context.Background())
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	var pkeys map[[32]byte]struct{}
+	pkeys, err = util.ReadTrustedKeys(home)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	}
+
+	if len(pkeys) > 0 {
+		// we have possible clients for remote clipboard
+		clipHelp = fmt.Sprintf("gclpr is serving %d key(s) on port %d", len(pkeys), clipPort)
+		go func() {
+			if err := clip.Serve(clipCtx, clipPort, clipLE, pkeys); err != nil {
+				log.Printf("gclpr serve() returned error: %s", err.Error())
+				clipHelp = "gclpr is not served"
+			}
+		}()
+	}
+	return nil
+}
+
 func main() {
 
-	// Redirect all logging to OutputDebugString()
-	dlog := util.NewDebugWriter()
-	log.SetOutput(dlog)
-	log.SetPrefix("[" + title + "] ")
-	log.SetFlags(0)
+	util.NewLogWriter(title, 0, false)
 
 	// Prepare help and parse arguments
 
@@ -288,18 +292,18 @@ func main() {
 	cli.StringVar(&envName, "envname", "SSH_AUTH_SOCK", "Environment variable `name` to hold socket path")
 	cli.BoolVar(&setenv, "setenv", false, "Export environment variable with 'envname' and modify WSLENV")
 	cli.BoolVar(&ignorelock, "nolock", false, "Provide access to ss-agent.exe even when user session is locked")
+	cli.IntVar(&clipPort, "port", 2850, "Remote clipboard port")
+	cli.StringVar(&clipLE, "line-endings", "", "Remote clipboard convert line endings (LF/CRLF)")
 	cli.BoolVar(&help, "help", false, "Show help")
 	cli.BoolVar(&debug, "debug", false, "Enable verbose debug logging")
-	cli.Var(&lemon, "lemonade", "Semicolon separated `list` of lemonade \"server\" options (TCP port, Allow IP Range, Line Endings)")
 
 	// Build usage string
 	var buf strings.Builder
 	cli.SetOutput(&buf)
-	fmt.Fprintf(&buf, "\n%s\n\nVersion:\n\t%s (%s)\n\t%s\n\n", tooltip, misc.GetVersion(), runtime.Version(), LastGitCommit)
+	fmt.Fprintf(&buf, "\n%s\n\nVersion:\n\t%s (%s)\n\t%s\n\n", tooltip, misc.GetVersion(), runtime.Version(), misc.GetGitHash())
 	fmt.Fprintf(&buf, "Usage:\n\t%s [options]\n\nOptions:\n\n", title)
 	cli.PrintDefaults()
 	usage = buf.String()
-	cli.SetOutput(dlog)
 
 	// do not show usage while parsing arguments
 	cli.Usage = func() {}
@@ -307,7 +311,6 @@ func main() {
 		util.ShowOKMessage(util.MsgError, title, err.Error())
 		os.Exit(1)
 	}
-
 	cli.Usage = func() {
 		text := usage
 		if len(socketName) > 0 {
@@ -316,8 +319,8 @@ func main() {
 		if len(pipeName) > 0 {
 			text += fmt.Sprintf("\nPipe name:\n  %s", pipeName)
 		}
-		if lemon.IsSet() {
-			text += fmt.Sprintf("\nLemonade stand:\n  %s", lemon.String())
+		if len(clipHelp) > 0 {
+			text += fmt.Sprintf("\nRemote clipboard:\n  %s", clipHelp)
 		}
 		util.ShowOKMessage(util.MsgInformation, title, text)
 	}
@@ -326,6 +329,8 @@ func main() {
 		cli.Usage()
 		os.Exit(0)
 	}
+
+	util.NewLogWriter(title, 0, debug)
 
 	// Check if Windows supports AF_UNIX sockets
 	if ok, err := util.IsProperWindowsVer(); err != nil {
@@ -349,22 +354,9 @@ func main() {
 		os.Remove(lockName)
 	}()
 
-	// Start lemonade backend if requested
-	var lemonade *citrus.Citrus
-	if lemon.IsSet() {
-		log.Printf("Starting lemonade server on '%s'", lemon.String())
-		if lemonade, err = citrus.NewCitrus(lemon, debug); err != nil {
-			util.ShowOKMessage(util.MsgError, title, err.Error())
-			os.Exit(1)
-		} else {
-			log.Print("Serving lemonade")
-			go func() {
-				lemonade.Serve(debug)
-				// If for some reason process breaks - exit
-				log.Print("Quiting - lemonade server ended")
-				systray.Quit()
-			}()
-		}
+	if err := clipServe(); err != nil {
+		util.ShowOKMessage(util.MsgError, title, err.Error())
+		os.Exit(1)
 	}
 
 	// enter main processing loop

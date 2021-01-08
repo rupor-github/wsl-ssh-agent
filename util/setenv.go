@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 	"unsafe"
 
@@ -18,9 +17,9 @@ const (
 	wslName = "WSLENV"
 )
 
-func notifySystem(debug bool) {
+func notifySystem() {
 	var (
-		mod             = syscall.NewLazyDLL("user32")
+		mod             = windows.NewLazySystemDLL("user32")
 		proc            = mod.NewProc("SendMessageTimeoutW")
 		wmSETTINGCHANGE = uint32(0x001A)
 		smtoABORTIFHUNG = uint32(0x0002)
@@ -28,26 +27,22 @@ func notifySystem(debug bool) {
 	)
 
 	start := time.Now()
-	if debug {
-		log.Printf("Broadcasting environment change. From %s", start)
-	}
+	log.Printf("Broadcasting environment change. From %s", start)
 
 	_, _, _ = proc.Call(uintptr(windows.InvalidHandle),
 		uintptr(wmSETTINGCHANGE),
 		0,
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("Environment"))),
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("Environment"))),
 		uintptr(smtoNORMAL|smtoABORTIFHUNG),
 		uintptr(1000),
 		0)
 
-	if debug {
-		log.Printf("Broadcasting environment change. To   %s, Elapsed %s", time.Now(), time.Since(start))
-	}
+	log.Printf("Broadcasting environment change. To   %s, Elapsed %s", time.Now(), time.Since(start))
 }
 
 // PrepareUserEnvironment modifies user environment. It sets SSH_AUTH_SOCK and creates/changes WSLENV to make sure path is
 // available to all WSL environments started after this fuction was called.
-func PrepareUserEnvironment(name, path string, debug bool) error {
+func PrepareUserEnvironment(name, path string) error {
 
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.READ|registry.WRITE)
 	if err != nil {
@@ -57,16 +52,14 @@ func PrepareUserEnvironment(name, path string, debug bool) error {
 
 	if err := k.SetStringValue(name, path); err != nil {
 		return err
-	} else if debug {
-		log.Printf("Set '%s=%s'", name, path)
 	}
+	log.Printf("Set '%s=%s'", name, path)
 
 	val, _, err := k.GetStringValue(wslName)
 	if err != nil && !os.IsNotExist(err) {
 		return err
-	} else if debug {
-		log.Printf("Was '%s=%s'", wslName, val)
 	}
+	log.Printf("Was '%s=%s'", wslName, val)
 
 	parts := strings.Split(val, ":")
 	vals := make([]string, 0, len(parts))
@@ -83,16 +76,15 @@ func PrepareUserEnvironment(name, path string, debug bool) error {
 
 	if err := k.SetStringValue(wslName, val); err != nil {
 		return err
-	} else if debug {
-		log.Printf("Set '%s=%s'", wslName, val)
 	}
+	log.Printf("Set '%s=%s'", wslName, val)
 
-	notifySystem(debug)
+	notifySystem()
 	return nil
 }
 
 // CleanUserEnvironment will reverse settings done by PrepareUserEnvironment.
-func CleanUserEnvironment(name string, debug bool) error {
+func CleanUserEnvironment(name string) error {
 
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.READ|registry.WRITE)
 	if err != nil {
@@ -102,16 +94,14 @@ func CleanUserEnvironment(name string, debug bool) error {
 
 	if err := k.DeleteValue(name); err != nil {
 		return err
-	} else if debug {
-		log.Printf("Del '%s'", name)
 	}
+	log.Printf("Del '%s'", name)
 
 	val, _, err := k.GetStringValue(wslName)
 	if err != nil && !os.IsNotExist(err) {
 		return err
-	} else if debug {
-		log.Printf("Was '%s=%s'", wslName, val)
 	}
+	log.Printf("Was '%s=%s'", wslName, val)
 
 	parts := strings.Split(val, ":")
 	vals := make([]string, 0, len(parts))
@@ -128,17 +118,15 @@ func CleanUserEnvironment(name string, debug bool) error {
 	if len(val) == 0 {
 		if err := k.DeleteValue(wslName); err != nil {
 			return err
-		} else if debug {
-			log.Printf("Del '%s'", wslName)
 		}
+		log.Printf("Del '%s'", wslName)
 	} else {
 		if err := k.SetStringValue(wslName, val); err != nil {
 			return err
-		} else if debug {
-			log.Printf("Set '%s=%s'", wslName, val)
 		}
+		log.Printf("Set '%s=%s'", wslName, val)
 	}
 
-	notifySystem(debug)
+	notifySystem()
 	return nil
 }

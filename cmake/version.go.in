@@ -1,6 +1,9 @@
 package misc
 
 func GetVersion() string {
-	return "@PRJ_VERSION_MAJOR@.@PRJ_VERSION_MINOR@"
+	return "@PRJ_VERSION_Major@.@PRJ_VERSION_Minor@.@PRJ_VERSION_Patch@"
 }
 
+func GetGitHash() string {
+	return "@GIT_HASH@"
+}

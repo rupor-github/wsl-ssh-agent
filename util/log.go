@@ -3,27 +3,39 @@
 package util
 
 import (
-	"syscall"
+	"io/ioutil"
+	"log"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
+var kernel = windows.NewLazySystemDLL("kernel32")
+
 // DebugWriter redirects all output to OutputDebugString().
-type DebugWriter struct {
-	dll  *syscall.LazyDLL
-	proc *syscall.LazyProc
+type logWriter struct {
+	proc *windows.LazyProc
 }
 
-// NewDebugWriter allocates new logger instance.
-func NewDebugWriter() *DebugWriter {
-	res := &DebugWriter{
-		dll: syscall.NewLazyDLL("kernel32"),
+// NewLogWriter redirects all log output depending on debug parameetr.
+// When true all output goes to OutputDebugString and you could use debugger or Sysinternals dbgview.exe to collect it.
+// When false - everything is discarded.
+func NewLogWriter(title string, flags int, debug bool) {
+
+	log.SetPrefix("[" + title + "] ")
+	log.SetFlags(flags)
+
+	if debug {
+		res := &logWriter{proc: kernel.NewProc("OutputDebugStringW")}
+		log.SetOutput(res)
+	} else {
+		log.SetOutput(ioutil.Discard)
 	}
-	res.proc = res.dll.NewProc("OutputDebugStringW")
-	return res
 }
 
-func (l *DebugWriter) Write(p []byte) (n int, err error) {
-	text, err := syscall.UTF16PtrFromString(string(p))
+func (l *logWriter) Write(p []byte) (n int, err error) {
+
+	text, err := windows.UTF16PtrFromString(string(p))
 	if err != nil {
 		return 0, err
 	}

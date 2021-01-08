@@ -23,6 +23,8 @@ linters:
     - whitespace
     - wsl
     - gomnd
+    - nlreturn
+    - wrapcheck
   fast: false
 
 linters-settings:
@@ -48,4 +50,7 @@ issues:
     - text: "Subprocess launched with function call as argument or cmd arguments"
       linters:
         - gosec
+    - text: "do not define dynamic errors"
+      linters:
+        - goerr113
 
