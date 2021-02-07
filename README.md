@@ -14,7 +14,7 @@ Windows 10 has very convenient `ssh-agent` service (with support for persistence
 
 My first attempt - [ssh-agent-wsl](https://github.com/rupor-github/ssh-agent-wsl) was successful, but due to Windows interop restrictions it required elaborate life-time management on the WSL side. Starting with build 17063 (which was many updates ago) Windows implemented AF_UNIX sockets. This makes it possible to remove all trickery from WSL side greatly simplifying everything. 
 
-**NOTE:** If you need access to more functionality (smard cards, identity management) provided by [GnuPG](https://www.gnupg.org/) set of tools on Windows - you may want to take a look at [win-gpg-agent](https://github.com/rupor-github/win-gpg-agent) instead.
+**NOTE:** If you need access to more functionality (smard cards, identity management) provided by [GnuPG](https://www.gnupg.org/) set of tools on Windows or if you are looking for compatibility with wider set of utilities, like Git for Windows, Putty, Cygwin - you may want to take a look at [win-gpg-agent](https://github.com/rupor-github/win-gpg-agent) instead.
 
 `wsl-ssh-agent-gui.exe` is a simple "notification tray" applet which maintains AF_UNIX ssh-agent compatible socket on Windows end. It proxes all requests from this socket to ssh-agent.exe via named pipe. The only thing required on WSL end for it to work is to make sure that WSL `SSH_AGENT_SOCK` points to proper socket path. The same socket could be shared by any/all WSL sessions.
 
