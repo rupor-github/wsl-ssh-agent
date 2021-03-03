@@ -59,7 +59,7 @@ endif()
 # Project version number
 set(PRJ_VERSION_Major "1")
 set(PRJ_VERSION_Minor "5")
-set(PRJ_VERSION_Patch "0")
+set(PRJ_VERSION_Patch "1")
 
 if (EXISTS "${PROJECT_SOURCE_DIR}/.git" AND IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
     execute_process(COMMAND ${CMAKE_SOURCE_DIR}/cmake/githash.sh ${GIT_EXECUTABLE}

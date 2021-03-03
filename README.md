@@ -35,6 +35,8 @@ starting with 1809 - beginning with insider build 17063 and would not work on ol
 
 Download from the [releases page](https://github.com/rupor-github/wsl-ssh-agent/releases) and unpack it in a convenient location.
 
+Starting with v1.5.1 releases are packed with zip and signed with [minisign](https://jedisct1.github.io/minisign/). Here is public key for verification: ![key](docs/build_key.png) RWTNh1aN8DrXq26YRmWO3bPBx4m8jBATGXt4Z96DF4OVSzdCBmoAU+Vq
+
 ## Usage
 
 1. Ensure that on Windows side `ssh-agent.exe` service (OpenSSH Authentication Agent) is started and has your keys. (After adding keys to Windows `ssh-agent.exe` you may remove them from your wsl home .ssh directory - just do not forget to adjust `IdentitiesOnly` directive in your ssh config accordingly. Keys are securely persisted in Windows registry, available for your account only). You may also want to switch its startup mode to "automatic". Using powershell with elevated privileges (admin mode):

@@ -8,8 +8,10 @@
 *.prof
 *.mprof
 *.log
-*.7z
 *.syso
+*.7z
+*.zip
+*.minisig
 
 release/
 build/
