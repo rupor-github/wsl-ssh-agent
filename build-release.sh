@@ -11,7 +11,7 @@ _dist=bin
 	make install
 )
 
-cp ../npiperelay/npiperelay.exe ${_dist}/.
+cp ../../jstarks/npiperelay/npiperelay.exe ${_dist}/.
 cd ${_dist}
 zip -9 ../wsl-gpg-agent.zip *
 cd ..
