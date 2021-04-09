@@ -13,6 +13,6 @@ _dist=bin
 
 cp ../../jstarks/npiperelay/npiperelay.exe ${_dist}/.
 cd ${_dist}
-zip -9 ../wsl-gpg-agent.zip *
+zip -9 ../wsl-ssh-agent.zip *
 cd ..
-echo ${BUILD_PSWD} | minisign -S -s ~/.minisign/build.key -c "wsl-gpg-agent release signature" -m wsl-gpg-agent.zip
+echo ${BUILD_PSWD} | minisign -S -s ~/.minisign/build.key -c "wsl-ssh-agent release signature" -m wsl-ssh-agent.zip
