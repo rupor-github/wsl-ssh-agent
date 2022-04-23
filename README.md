@@ -52,7 +52,8 @@ Starting with v1.5.1 releases are packed with zip and signed with [minisign](htt
 ## Usage
 
 1. Ensure that on Windows side `ssh-agent.exe` service (OpenSSH Authentication Agent) is started and has your keys. (After adding keys to Windows `ssh-agent.exe` you may remove them from your wsl home .ssh directory - just do not forget to adjust `IdentitiesOnly` directive in your ssh config accordingly. Keys are securely persisted in Windows registry, available for your account only). You may also want to switch its startup mode to "automatic". Using powershell with elevated privileges (admin mode):
-```
+
+```powershell
 	Start-Service ssh-agent
 	Set-Service -StartupType Automatic ssh-agent
 ```
@@ -62,12 +63,12 @@ Starting with v1.5.1 releases are packed with zip and signed with [minisign](htt
 	* Using `-socket` option specify "well known" path on Windows side and then properly specify the same path in every WSL session:
 
 		Windows:
-		    ```
+		    ```cmd
 			wsl-ssh-agent-gui.exe -socket c:\wsl-ssh-agent\ssh-agent.sock
 		    ```
 
 		WSL:
-		    ```
+		    ```bash
 		    export SSH_AUTH_SOCK=/mnt/c/wsl-ssh-agent/ssh-agent.sock
 		    ```
 
@@ -85,12 +86,14 @@ Starting with v1.5.1 releases are packed with zip and signed with [minisign](htt
 ```
 
 To avoid this and still be able to use `-setenv` and automatically generated socket path use `-envname` to specify variable name to set. Later on WSL side you could use:
-```
+
+```bash
 export SSH_AUTH_SOCK=${<<YOUR-NAME-HERE>>}
 ```
 
 When `wsl-ssh-agent-gui.exe` is running you could see what it is connected to by clicking on its icon in notification tray area and selecting `About`. At the bottom of the message you would see something like:
-```
+
+```terminal
 Socket path:
   C:\Users\rupor\AppData\Local\Temp\ssh-273683143.sock
 Pipe name:
@@ -105,7 +108,7 @@ For security reasons unless `-nolock` argument is specified program will refuse 
 
 Run `wsl-ssh-agent-gui.exe -help`
 
-```
+```terminal
 ---------------------------
 wsl-ssh-agent-gui
 ---------------------------
@@ -144,7 +147,7 @@ Options:
 
 At the moment AF_UNIX interop does not seems to be working with WSL2 VMs. Hopefully this will be sorted out eventually. Meantime there is an easy workaround (proposed by multiple people) which does not use wsl-ssh-agent.exe at all and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). Put npiperelay.exe somewhere on devfs for interop to work its magic (I have `winhome ⇒ /mnt/c/Users/rupor` in my $HOME directory for that) and add following lines in your .bashrc/.zshrc:
 
-```
+```bash
 export SSH_AUTH_SOCK=$HOME/.ssh/agent.sock
 ss -a | grep -q $SSH_AUTH_SOCK
 if [ $? -ne 0   ]; then
@@ -152,7 +155,8 @@ if [ $? -ne 0   ]; then
     ( setsid socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork EXEC:"$HOME/winhome/.wsl/npiperelay.exe -ei -s //./pipe/openssh-ssh-agent",nofork & ) >/dev/null 2>&1
 fi
 ```
-You *really* have to be on WSL 2 in order for this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l -all -v` to check what is going on. When on WSL 2 make sure that socat is installed and npiperelay.exe is on windows partition and path is right. For convinience I will be packing pre-build npiperelay.exe with wsl-ssh-agent.
+
+You *really* have to be on WSL 2 in order for this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l --all -v` to check what is going on. When on WSL 2 make sure that socat is installed and npiperelay.exe is on windows partition and path is right. For convinience I will be packing pre-build npiperelay.exe with wsl-ssh-agent. Please also ensure that `socat` is installed: `sudo apt install socat`.
 
 ## Example
 
@@ -161,26 +165,35 @@ Putting it all together nicely - `remote` here refers to your wsl shell or some 
 For my WSL installations I always create `~/winhome` and link it to my Windows home directory (where I have `.wsl` directory with various interoperability tools from Windows side). I am assuming that [gclpr](https://github.com/rupor-github/gclpr) is in your path on `remote` and you installed it's Windows counterpart somewhere in `drvfs` location (~/winhome/.wsl is a good place).
 
 I auto-start `wsl-ssh-agent-gui.exe` on logon on my Windows box using following command line:
-```
+
+```terminal
 wsl-ssh-agent-gui.exe -setenv -envname=WSL_AUTH_SOCK
 ```
+
 In my .bashrc I have:
-```
+
+```bash
 [ -n ${WSL_AUTH_SOCK} ] && export SSH_AUTH_SOCK=${WSL_AUTH_SOCK}
 ```
+
 and my `.ssh/config` entries used to `ssh` to `remote` have port forwarding enabled:
+
 ```
 RemoteForward 2850 127.0.0.1:2850
 ```
+
 On `remote` my `tmux.conf` includes following lines:
-```
+
+```tmux
 set -g set-clipboard off
 if-shell 'if [ -n ${WSL_DISTRO_NAME} ]; then true; else false; fi' \
   'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "~/winhome/.wsl/gclpr.exe copy" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "~/winhome/.wsl/gclpr.exe copy"' \
   'bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "gclpr copy" ; bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "gclpr copy"'
 ```
+
 And my `neovim` configuration file `init.vim` on `remote` has following lines:
-```
+
+```vim
 set clipboard+=unnamedplus
 if has("unix")
 	" ----- on UNIX ask lemonade to translate line-endings
