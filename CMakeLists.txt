@@ -37,7 +37,8 @@ endif()
 set(DEST_DIR "${PROJECT_SOURCE_DIR}/bin")
 message(STATUS "Installation directory: ${DEST_DIR}")
 
-find_package(Go 1.15 REQUIRED)
+set(GO_MIN_REQURED_VERSION 1.17)
+find_package(Go ${GO_MIN_REQURED_VERSION} REQUIRED)
 find_package(Git REQUIRED)
 
 # Make sure we setup go properly
@@ -58,8 +59,8 @@ endif()
 
 # Project version number
 set(PRJ_VERSION_Major "1")
-set(PRJ_VERSION_Minor "5")
-set(PRJ_VERSION_Patch "2")
+set(PRJ_VERSION_Minor "6")
+set(PRJ_VERSION_Patch "0")
 
 if (EXISTS "${PROJECT_SOURCE_DIR}/.git" AND IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
     execute_process(COMMAND ${CMAKE_SOURCE_DIR}/cmake/githash.sh ${GIT_EXECUTABLE}
@@ -74,12 +75,15 @@ else()
     set(GIT_HASH "no-git")
 endif()
 configure_file("${PROJECT_SOURCE_DIR}/cmake/version.go.in" "${PROJECT_SOURCE_DIR}/misc/version.go")
-configure_file("${PROJECT_SOURCE_DIR}/cmake/agent.rc.in" "${PROJECT_SOURCE_DIR}/resources.rc")
-configure_file("${PROJECT_SOURCE_DIR}/cmake/agent.xml.in" "${PROJECT_SOURCE_DIR}/manifest.xml")
+configure_file("${PROJECT_SOURCE_DIR}/cmake/agent.rc.in" "${PROJECT_SOURCE_DIR}/cmd/agent/resources.rc")
+configure_file("${PROJECT_SOURCE_DIR}/cmake/agent.xml.in" "${PROJECT_SOURCE_DIR}/cmd/agent/manifest.xml")
+configure_file("${PROJECT_SOURCE_DIR}/cmake/wsl-ssh-agent.json.in" "${PROJECT_SOURCE_DIR}/wsl-ssh-agent.json")
+
+# for user convinience
+execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../../jstarks/npiperelay/npiperelay.exe ${PROJECT_BINARY_DIR})
 
 # distribute history
 execute_process(COMMAND ${CMAKE_COMMAND} -E env ${GIT_EXECUTABLE} changelog --all --tag "v${PRJ_VERSION_Major}.${PRJ_VERSION_Minor}.${PRJ_VERSION_Patch}" --stdout OUTPUT_FILE ${PROJECT_BINARY_DIR}/changelog.txt ERROR_QUIET)
-install(FILES ${PROJECT_BINARY_DIR}/changelog.txt DESTINATION ${DEST_DIR} CONFIGURATIONS Release)
 
 message(STATUS "Building version \"${PRJ_VERSION_Major}.${PRJ_VERSION_Minor}.${PRJ_VERSION_Patch}\" git \"${GIT_HASH}\"")
 
@@ -94,33 +98,55 @@ endif()
 # Some contexts dependent settings
 ########################################################################################################
 
+list(APPEND GO_ENV
+    GOPATH=${GO_PATH}
+    GOOS=${CROSS_GOOS}
+    GOARCH=${CROSS_GOARCH}
+    )
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(TEST_RUN_ARGS "-v")
+    set(GO_ARGS "-mod=mod")
 else()
-    set(GO_MOD_ARGS "-mod=vendor")
+    set(GO_ARGS "-mod=vendor")
 endif()
 
 ########################################################################################################
 # main target - always out of date, "go build" will figure it out
 ########################################################################################################
 
+add_custom_target(release
+    DEPENDS ${PROJECT_SOURCE_DIR}/wsl-ssh-agent.zip
+        ${PROJECT_SOURCE_DIR}/wsl-ssh-agent.json
+    COMMAND ${CMAKE_SOURCE_DIR}/cmake/sign.sh
+    COMMENT "Building release..."
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+
+add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/wsl-ssh-agent.zip
+    DEPENDS ${PROJECT_BINARY_DIR}/changelog.txt
+        ${PROJECT_BINARY_DIR}/npiperelay${CMAKE_EXECUTABLE_SUFFIX}
+        ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX}
+    COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${PROJECT_SOURCE_DIR}/wsl-ssh-agent.zip --format=zip
+        changelog.txt npiperelay${CMAKE_EXECUTABLE_SUFFIX} wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX}
+    COMMENT "Archiving release..."
+    WORKING_DIRECTORY "${PROJECT_BINARY_DIR}")
+
 add_custom_target(bin_agent ALL
-    DEPENDS ${PROJECT_SOURCE_DIR}/resources.syso
-    COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH}
-        ${GO_EXECUTABLE} build -trimpath -o ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX}
+    DEPENDS ${PROJECT_SOURCE_DIR}/cmd/agent/resources.syso
+    BYPRODUCTS ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX}
+    COMMAND ${GO_ENV} ${GO_EXECUTABLE} build -trimpath -o ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX}
         -ldflags='-H=windowsgui'
-        ${GO_MOD_ARGS}
+        ${GO_ARGS}
+        ./cmd/agent
     COMMENT "Building wsl-ssh-agent-gui..."
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
-install(PROGRAMS ${PROJECT_BINARY_DIR}/wsl-ssh-agent-gui${CMAKE_EXECUTABLE_SUFFIX} DESTINATION ${DEST_DIR} CONFIGURATIONS Release)
 
-add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/resources.syso
-     DEPENDS ${PROJECT_SOURCE_DIR}/resources.rc
-         ${PROJECT_SOURCE_DIR}/manifest.xml
-         ${PROJECT_SOURCE_DIR}/icon.ico
+add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/cmd/agent/resources.syso
+     DEPENDS ${PROJECT_SOURCE_DIR}/cmd/agent/resources.rc
+         ${PROJECT_SOURCE_DIR}/cmd/agent/manifest.xml
+         ${PROJECT_SOURCE_DIR}/cmd/agent/icon.ico
      COMMAND ${CMAKE_RC_COMPILER} -O coff
-         -o ${PROJECT_SOURCE_DIR}/resources.syso
-         -i ${PROJECT_SOURCE_DIR}/resources.rc
+         -o ${PROJECT_SOURCE_DIR}/cmd/agent/resources.syso
+         -i ${PROJECT_SOURCE_DIR}/cmd/agent/resources.rc
      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
      COMMENT "Building wsl-ssh-agent-gui resources...")
 
@@ -134,32 +160,16 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     # Go linter
     ########################################################################################################
 
-
-    # Running linters on main target
-    find_program(GO_LINTER golangci-lint PATHS ${PROJECT_BINARY_DIR} NO_DEFAULT_PATH)
-    if(NOT GO_LINTER)
-        set(golangci-lint-ver "1.33.0")
-        message(STATUS "Preparing golangci-lint ${golangci-lint-ver}")
-        file(DOWNLOAD "https://github.com/golangci/golangci-lint/releases/download/v${golangci-lint-ver}/golangci-lint-${golangci-lint-ver}-linux-amd64.tar.gz" ${PROJECT_BINARY_DIR}/golangci-lint.tar.gz
-            INACTIVITY_TIMEOUT 60
-            TIMEOUT 300
-            STATUS DOWNLOAD_RES
-            EXPECTED_HASH SHA256=e2d6082f1df53c5d2c280765000f9e82783ea909ba419c6c4e172936b076031e)
-        list(GET DOWNLOAD_RES 0 RES)
-        list(GET DOWNLOAD_RES 1 MSG)
-        if(RES)
-            message(FATAL_ERROR "${MSG} : ${RES}")
-        endif()
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf golangci-lint.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} -E copy golangci-lint-${golangci-lint-ver}-linux-amd64/golangci-lint golangci-lint WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory golangci-lint-${golangci-lint-ver}-linux-amd64 WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} -E remove golangci-lint.tar.gz WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
-        set(GO_LINTER ${PROJECT_BINARY_DIR}/golangci-lint)
-    endif()
+    add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/staticcheck
+        COMMAND GOPATH=${GO_PATH} GOOS= GOARCH= ${GO_EXECUTABLE} build ${GO_MOD_ARGS} -o ${PROJECT_BINARY_DIR}/staticcheck
+            honnef.co/go/tools/cmd/staticcheck
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        COMMENT "Building staticcheck executable...")
 
     add_custom_target(lint
-        COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH} ${GO_LINTER} run
-        COMMENT "Mega-linting project with ${GO_LINTER}..."
+        DEPENDS ${PROJECT_BINARY_DIR}/staticcheck
+        COMMAND ${PROJECT_BINARY_DIR}/staticcheck -f stylish -tests=false ./...
+        COMMENT "Linting project..."
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
     ########################################################################################################
@@ -168,14 +178,21 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
     add_custom_target(deps_tidy
         SOURCES ${PROJECT_SOURCE_DIR}/go.mod
-        COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH} ${GO_EXECUTABLE} mod tidy
+        COMMAND ${GO_ENV} ${GO_EXECUTABLE} mod tidy -compat=${GO_MIN_REQURED_VERSION}
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         COMMENT "Cleaning dependencies (go mod tidy)"
         VERBATIM)
 
+    add_custom_target(deps_download
+        SOURCES ${PROJECT_SOURCE_DIR}/go.mod
+        COMMAND ${GO_ENV} ${GO_EXECUTABLE} mod download all
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        COMMENT "Downloading dependencies (go mod download)"
+        VERBATIM)
+
     add_custom_target(deps_vendor
         SOURCES ${PROJECT_SOURCE_DIR}/go.mod
-        COMMAND GOPATH=${GO_PATH} GO111MODULE=on GOOS=${CROSS_GOOS} GOARCH=${CROSS_GOARCH} ${GO_EXECUTABLE} mod vendor
+        COMMAND ${GO_ENV} ${GO_EXECUTABLE} mod vendor
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         COMMENT "Creating vendor directory (go mod vendor)"
         VERBATIM)

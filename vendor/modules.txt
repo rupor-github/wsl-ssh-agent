@@ -1,19 +1,105 @@
-# github.com/Microsoft/go-winio v0.4.14
+# github.com/BurntSushi/toml v0.4.1
+## explicit; go 1.16
+github.com/BurntSushi/toml
+github.com/BurntSushi/toml/internal
+# github.com/Microsoft/go-winio v0.5.2
+## explicit; go 1.13
 github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/pkg/guid
-# github.com/allan-simon/go-singleinstance v0.0.0-20160830203053-79edcfdc2dfc
+# github.com/allan-simon/go-singleinstance v0.0.0-20210120080615-d0997106ab37
+## explicit; go 1.15
 github.com/allan-simon/go-singleinstance
-# github.com/atotto/clipboard v0.1.2
+# github.com/atotto/clipboard v0.1.4
+## explicit
 github.com/atotto/clipboard
-# github.com/rupor-github/gclpr v1.0.5
+# github.com/rupor-github/gclpr v1.2.0
+## explicit; go 1.17
 github.com/rupor-github/gclpr/server
+github.com/rupor-github/gclpr/util
 # github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
+## explicit
 github.com/skratchdot/open-golang/open
-# golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+# golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
+## explicit; go 1.17
 golang.org/x/crypto/ed25519
-golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/nacl/sign
-# golang.org/x/sys v0.0.0-20191026070338-33540a1f6037
+# golang.org/x/exp/typeparams v0.0.0-20220218215828-6cf2b201936e
+## explicit; go 1.18
+golang.org/x/exp/typeparams
+# golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
+## explicit; go 1.17
+golang.org/x/mod/semver
+# golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
+## explicit; go 1.17
+golang.org/x/sys/execabs
+golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
+# golang.org/x/tools v0.1.11-0.20220316014157-77aa08bb151a
+## explicit; go 1.17
+golang.org/x/tools/go/analysis
+golang.org/x/tools/go/analysis/passes/inspect
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/go/ast/inspector
+golang.org/x/tools/go/buildutil
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/go/internal/cgo
+golang.org/x/tools/go/internal/gcimporter
+golang.org/x/tools/go/internal/packagesdriver
+golang.org/x/tools/go/loader
+golang.org/x/tools/go/packages
+golang.org/x/tools/go/types/objectpath
+golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/internal/analysisinternal
+golang.org/x/tools/internal/event
+golang.org/x/tools/internal/event/core
+golang.org/x/tools/internal/event/keys
+golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/lsp/fuzzy
+golang.org/x/tools/internal/packagesinternal
+golang.org/x/tools/internal/typeparams
+golang.org/x/tools/internal/typesinternal
+# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+## explicit; go 1.11
+golang.org/x/xerrors
+golang.org/x/xerrors/internal
+# honnef.co/go/tools v0.3.0
+## explicit; go 1.17
+honnef.co/go/tools/analysis/code
+honnef.co/go/tools/analysis/edit
+honnef.co/go/tools/analysis/facts
+honnef.co/go/tools/analysis/facts/nilness
+honnef.co/go/tools/analysis/facts/typedness
+honnef.co/go/tools/analysis/lint
+honnef.co/go/tools/analysis/report
+honnef.co/go/tools/cmd/staticcheck
+honnef.co/go/tools/config
+honnef.co/go/tools/go/ast/astutil
+honnef.co/go/tools/go/buildid
+honnef.co/go/tools/go/ir
+honnef.co/go/tools/go/ir/irutil
+honnef.co/go/tools/go/loader
+honnef.co/go/tools/go/types/typeutil
+honnef.co/go/tools/internal/passes/buildir
+honnef.co/go/tools/internal/renameio
+honnef.co/go/tools/internal/robustio
+honnef.co/go/tools/internal/sharedcheck
+honnef.co/go/tools/internal/sync
+honnef.co/go/tools/knowledge
+honnef.co/go/tools/lintcmd
+honnef.co/go/tools/lintcmd/cache
+honnef.co/go/tools/lintcmd/runner
+honnef.co/go/tools/lintcmd/version
+honnef.co/go/tools/pattern
+honnef.co/go/tools/printf
+honnef.co/go/tools/quickfix
+honnef.co/go/tools/sarif
+honnef.co/go/tools/simple
+honnef.co/go/tools/staticcheck
+honnef.co/go/tools/staticcheck/fakejson
+honnef.co/go/tools/staticcheck/fakereflect
+honnef.co/go/tools/staticcheck/fakexml
+honnef.co/go/tools/stylecheck
+honnef.co/go/tools/unused

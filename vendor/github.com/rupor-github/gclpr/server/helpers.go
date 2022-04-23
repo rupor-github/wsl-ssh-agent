@@ -9,8 +9,8 @@ import (
 func ConvertLE(text, op string) string {
 	switch {
 	case strings.EqualFold("lf", op):
-		text = strings.Replace(text, "\r\n", "\n", -1)
-		return strings.Replace(text, "\r", "\n", -1)
+		text = strings.ReplaceAll(text, "\r\n", "\n")
+		return strings.ReplaceAll(text, "\r", "\n")
 	case strings.EqualFold("crlf", op):
 		text = regexp.MustCompile(`\r(.)|\r$`).ReplaceAllString(text, "\r\n$1")
 		text = regexp.MustCompile(`([^\r])\n|^\n`).ReplaceAllString(text, "$1\r\n")

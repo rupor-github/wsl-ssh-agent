@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -17,14 +18,15 @@ const DefaultPort = 2850
 
 type secConn struct {
 	conn  net.Conn
-	pkeys map[[32]byte]struct{}
+	pkeys map[[32]byte][32]byte
+	magic []byte
 }
 
 func (sc *secConn) Read(p []byte) (n int, err error) {
 
 	var (
-		pk [32]byte
-		in = make([]byte, len(p)+len(pk)+sign.Overhead)
+		hpk, pk [32]byte
+		in      = make([]byte, len(p)+len(hpk)+len(sc.magic)+sign.Overhead)
 	)
 
 	n, err = sc.conn.Read(in)
@@ -32,19 +34,29 @@ func (sc *secConn) Read(p []byte) (n int, err error) {
 		return
 	}
 
-	if n <= len(pk)+sign.Overhead {
+	if n <= len(sc.magic)+len(hpk)+sign.Overhead {
 		log.Printf("Message is too short: %d", n)
 		return 0, io.ErrUnexpectedEOF
 	}
 
-	copy(pk[:], in[0:len(pk)])
+	magic := make([]byte, len(sc.magic))
+	copy(magic, in[0:len(magic)])
 
-	if _, ok := sc.pkeys[pk]; !ok {
-		log.Printf("Call with unathorized key: %s", hex.EncodeToString(pk[:]))
+	// check first 6 bytes of magic - signature and major version number
+	if !bytes.Equal(magic[0:6], sc.magic[0:6]) {
+		log.Printf("Bad signature or incompatible versions: server [%x], client [%x]", sc.magic, magic)
 		return 0, rpc.ErrShutdown
 	}
 
-	out, ok := sign.Open([]byte{}, in[len(pk):n], &pk)
+	copy(hpk[:], in[len(magic):len(magic)+len(hpk)])
+
+	var ok bool
+	if pk, ok = sc.pkeys[hpk]; !ok {
+		log.Printf("Call with unauthorized key: %s", hex.EncodeToString(hpk[:]))
+		return 0, rpc.ErrShutdown
+	}
+
+	out, ok := sign.Open([]byte{}, in[len(magic)+len(hpk):n], &pk)
 	if !ok {
 		log.Printf("Call fails verification with key: %s", hex.EncodeToString(pk[:]))
 		return 0, rpc.ErrShutdown
@@ -62,7 +74,7 @@ func (sc *secConn) Close() error {
 }
 
 // Serve handles backend rpc calls.
-func Serve(ctx context.Context, port int, le string, pkeys map[[32]byte]struct{}) error {
+func Serve(ctx context.Context, port int, le string, pkeys map[[32]byte][32]byte, magic []byte) error {
 
 	if err := rpc.Register(NewURI()); err != nil {
 		return fmt.Errorf("unable to register URI rpc object: %w", err)
@@ -107,6 +119,7 @@ func Serve(ctx context.Context, port int, le string, pkeys map[[32]byte]struct{}
 		}(&secConn{
 			conn:  conn,
 			pkeys: pkeys,
+			magic: magic,
 		})
 	}
 }

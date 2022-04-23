@@ -15,14 +15,15 @@ import (
 )
 
 func main() {
-	_, err := singleinstance.CreateLockFile("plop.lock")
+	lockFile, err := singleinstance.CreateLockFile("plop.lock")
 	if err != nil {
 		fmt.Println("An instance already exists")
 		return
 	}
+	defer lockFile.Close()
 
 	fmt.Println("Sleeping...")
-	time.Sleep(30 * time.Second)
+	time.Sleep(10 * time.Second)
 	fmt.Println("Done")
 }
 ```

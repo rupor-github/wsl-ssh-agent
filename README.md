@@ -10,18 +10,19 @@
     <hr>
 </p>
 
-Windows 10 has very convenient `ssh-agent` service (with support for persistence and Windows security). Unfortunately it is not accessible from WSL. This project aims to correct this situation by enabling access to SSH keys held by Windows own `ssh-agent` service from inside the [Windows Subsystem for Linux](https://msdn.microsoft.com/en-us/commandline/wsl/about).
+Windows has very convenient `ssh-agent` service (with support for persistence and Windows security). Unfortunately it is not accessible from WSL. This project aims to correct this situation by enabling access to SSH keys held by Windows own `ssh-agent` service from inside the [Windows Subsystem for Linux](https://msdn.microsoft.com/en-us/commandline/wsl/about).
 
 My first attempt - [ssh-agent-wsl](https://github.com/rupor-github/ssh-agent-wsl) was successful, but due to Windows interop restrictions it required elaborate life-time management on the WSL side. Starting with build 17063 (which was many updates ago) Windows implemented AF_UNIX sockets. This makes it possible to remove all trickery from WSL side greatly simplifying everything. 
 
 **NOTE:** If you need access to more functionality (smard cards, identity management) provided by [GnuPG](https://www.gnupg.org/) set of tools on Windows or if you are looking for compatibility with wider set of utilities, like Git for Windows, Putty, Cygwin - you may want to take a look at [win-gpg-agent](https://github.com/rupor-github/win-gpg-agent) instead.
 
-`wsl-ssh-agent-gui.exe` is a simple "notification tray" applet which maintains AF_UNIX ssh-agent compatible socket on Windows end. It proxes all requests from this socket to ssh-agent.exe via named pipe. The only thing required on WSL end for it to work is to make sure that WSL `SSH_AGENT_SOCK` points to proper socket path. The same socket could be shared by any/all WSL sessions.
+`wsl-ssh-agent-gui.exe` is a simple "notification tray" applet which maintains AF_UNIX ssh-agent compatible socket on Windows end. It proxies all requests from this socket to ssh-agent.exe via named pipe. The only thing required on WSL end for it to work is to make sure that WSL `SSH_AGENT_SOCK` points to proper socket path. The same socket could be shared by any/all WSL sessions.
 
 As an additional bonus `wsl-ssh-agent-gui.exe` could work as remote clipboard server so you could send your clipboard from tmux or neovim remote session back to your windows box over SSH secured connection easily. 
 
 **NOTE: BREAKING CHANGE** Version 1.5.0 introduces breaking change. If you were not using `wsl-ssh-agent-gui.exe` as `lemonade` clipboard backend - this should not concern you at the slightest. Otherwise lemonade support no longer - it has been replaced with [gclpr](https://github.com/rupor-github/gclpr) which is more secure.
 
+**NOTE: BREAKING CHANGE** Version 1.6.0 introduces breaking change. If you were not using `wsl-ssh-agent-gui.exe` as `gclpr` clipboard backend - this should not concern you at the slightest. Otherwise starting with v1.1.0 gclpr server backend (included with v1.6.0) enforces protocol visioning and may require upgrade of gclpr tools.
 
 **SECURITY NOTICE:** All the usual security caveats applicable to WSL apply. Most importantly, all interaction with the Win32 world happens with the credentials of the user who started the WSL environment. In practice, *if you allow someone else to log in to your WSL environment remotely, they may be able to access the SSH keys stored in your ssh-agent.* This is a fundamental feature of WSL; if you are not sure of what you're doing, do not allow remote access to your WSL environment (i.e. by starting an SSH server).
 
@@ -31,11 +32,22 @@ starting with 1809 - beginning with insider build 17063 and would not work on ol
 
 ## Installation
 
-### From binaries
+```
+    scoop install https://github.com/rupor-github/wsl-ssh-agent/releases/latest/download/wsl-ssh-agent.json
+```
+and updating:
+```
+    scoop update wsl-ssh-agent
+```
 
-Download from the [releases page](https://github.com/rupor-github/wsl-ssh-agent/releases) and unpack it in a convenient location.
+Alternatively download from the [releases page](https://github.com/rupor-github/wsl-ssh-agent/releases) and unpack it in a convenient location.
 
-Starting with v1.5.1 releases are packed with zip and signed with [minisign](https://jedisct1.github.io/minisign/). Here is public key for verification: ![key](docs/build_key.png) RWTNh1aN8DrXq26YRmWO3bPBx4m8jBATGXt4Z96DF4OVSzdCBmoAU+Vq
+Starting with v1.5.1 releases are packed with zip and signed with [minisign](https://jedisct1.github.io/minisign/). Here is public key for verification:
+
+<p>
+    <img src="docs/build_key.svg" style="vertical-align:middle; width:15%" align="absmiddle"/>
+    <span style="vertical-align:middle;">&nbsp;&nbsp;RWTNh1aN8DrXq26YRmWO3bPBx4m8jBATGXt4Z96DF4OVSzdCBmoAU+Vq</span>
+</p>
 
 ## Usage
 

@@ -8,16 +8,15 @@
 *.prof
 *.mprof
 *.log
-*.syso
 *.7z
-*.zip
-*.minisig
+*.syso
 
-release/
 build/
-bin/
 
 # build specific
 misc/version.go
-resources.rc
-manifest.xml
+cmd/*/resources.rc
+cmd/*/manifest.xml
+wsl-ssh-agent.zip
+wsl-ssh-agent.zip.minisig
+wsl-ssh-agent.json

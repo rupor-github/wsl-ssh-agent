@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 //nolint
@@ -34,17 +35,18 @@ var (
 	s32              = windows.NewLazySystemDLL("Shell32.dll")
 	pShellNotifyIcon = s32.NewProc("Shell_NotifyIconW")
 
-	u32                    = windows.NewLazySystemDLL("User32.dll")
-	pCreateMenu            = u32.NewProc("CreateMenu")
-	pCreatePopupMenu       = u32.NewProc("CreatePopupMenu")
-	pCreateWindowEx        = u32.NewProc("CreateWindowExW")
-	pDefWindowProc         = u32.NewProc("DefWindowProcW")
-	pDeleteMenu            = u32.NewProc("DeleteMenu")
-	pDestroyWindow         = u32.NewProc("DestroyWindow")
-	pDispatchMessage       = u32.NewProc("DispatchMessageW")
-	pDrawIconEx            = u32.NewProc("DrawIconEx")
-	pGetCursorPos          = u32.NewProc("GetCursorPos")
-	pGetDC                 = u32.NewProc("GetDC")
+	u32              = windows.NewLazySystemDLL("User32.dll")
+	pCreateMenu      = u32.NewProc("CreateMenu")
+	pCreatePopupMenu = u32.NewProc("CreatePopupMenu")
+	pCreateWindowEx  = u32.NewProc("CreateWindowExW")
+	pDefWindowProc   = u32.NewProc("DefWindowProcW")
+	pDeleteMenu      = u32.NewProc("DeleteMenu")
+	pDestroyWindow   = u32.NewProc("DestroyWindow")
+	pDispatchMessage = u32.NewProc("DispatchMessageW")
+	pDrawIconEx      = u32.NewProc("DrawIconEx")
+	pGetCursorPos    = u32.NewProc("GetCursorPos")
+	pGetDC           = u32.NewProc("GetDC")
+	//lint:ignore U1000 keep pGetMenuItemID
 	pGetMenuItemID         = u32.NewProc("GetMenuItemID")
 	pGetMessage            = u32.NewProc("GetMessageW")
 	pGetSystemMetrics      = u32.NewProc("GetSystemMetrics")
@@ -716,6 +718,7 @@ func (t *winTray) delFromVisibleItems(parent, val uint32) {
 			break
 		}
 	}
+	t.visibleItems[parent] = visibleItems
 }
 
 func (t *winTray) addToVisibleItems(parent, val uint32) {
