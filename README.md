@@ -1,14 +1,10 @@
-<p align="center">
-    <h1 align="center">wsl-ssh-agent</h1>
-    <p align="center">
-		Helper to interface with Windows ssh-agent.exe service from WSL, replacement for ssh-agent-wsl.
-    </p>
-    <p align="center">
-        <a href="https://pkg.go.dev/mod/github.com/rupor-github/wsl-ssh-agent/?tab=packages"><img alt="GoDoc" src="https://img.shields.io/badge/godoc-reference-blue.svg" /></a>
-        <a href="https://goreportcard.com/report/github.com/rupor-github/wsl-ssh-agent"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/rupor-github/wsl-ssh-agent" /></a>
-    </p>
-    <hr>
-</p>
+<h1>
+    <img src="docs/ssh.svg" style="vertical-align:middle; width:8%" align="absmiddle"/>
+    <span style="vertical-align:middle;">&nbsp;&nbsp;wsl-ssh-agent</span>
+</h1>
+
+### Helper to interface with Windows ssh-agent.exe service from WSL, replacement for ssh-agent-wsl.
+[![GitHub Release](https://img.shields.io/github/release/rupor-github/wsl-ssh-agent.svg)](https://github.com/rupor-github/wsl-ssh-agent/releases)
 
 Windows has very convenient `ssh-agent` service (with support for persistence and Windows security). Unfortunately it is not accessible from WSL. This project aims to correct this situation by enabling access to SSH keys held by Windows own `ssh-agent` service from inside the [Windows Subsystem for Linux](https://msdn.microsoft.com/en-us/commandline/wsl/about).
 
