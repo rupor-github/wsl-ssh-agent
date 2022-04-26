@@ -8,8 +8,8 @@ github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/rupor-github/gclpr v1.2.0 h1:yiRLmdu8vCw5VSt4PCQaTDytFD6oHmRZDhALXz1yXh4=
-github.com/rupor-github/gclpr v1.2.0/go.mod h1:PyhH4EaDiGk8gkTOqzlFzidhqCgb4WAMVoRRU7Gbn38=
+github.com/rupor-github/gclpr v1.2.1 h1:LaByitXVainoz4Ezm0uHwQv7KGB5ZookyyItX+8XcrU=
+github.com/rupor-github/gclpr v1.2.1/go.mod h1:PyhH4EaDiGk8gkTOqzlFzidhqCgb4WAMVoRRU7Gbn38=
 github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
 github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 h1:JIAuq3EEf9cgbU6AtGPK4CTG3Zf6CKMNqf0MHTggAUA=
 github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966/go.mod h1:sUM3LWHvSMaG192sy56D9F7CNvL7jUJVXoqM1QKLnog=

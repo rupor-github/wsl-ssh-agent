@@ -20,8 +20,11 @@ func ReadKeys(home string) (*[32]byte, *[64]byte, error) {
 
 	kd := filepath.Join(home, ".gclpr")
 	fi, err := os.Stat(kd)
-	if err != nil || !fi.IsDir() {
-		return nil, nil, fmt.Errorf("keys directory %s does not exists", kd)
+	if err == nil && !fi.IsDir() {
+		return nil, nil, fmt.Errorf("%s exists and is not a directory", kd)
+	}
+	if err != nil {
+		return nil, nil, err
 	}
 
 	fn := filepath.Join(kd, "key.pub")
@@ -88,8 +91,11 @@ func ReadTrustedKeys(home string) (map[[32]byte][32]byte, error) {
 
 	kd := filepath.Join(home, ".gclpr")
 	fi, err := os.Stat(kd)
-	if err != nil || !fi.IsDir() {
-		return nil, fmt.Errorf("keys directory %s does not exists", kd)
+	if err == nil && !fi.IsDir() {
+		return nil, fmt.Errorf("%s exists and is not a directory", kd)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	fn := filepath.Join(kd, "trusted")

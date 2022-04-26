@@ -12,7 +12,7 @@ github.com/allan-simon/go-singleinstance
 # github.com/atotto/clipboard v0.1.4
 ## explicit
 github.com/atotto/clipboard
-# github.com/rupor-github/gclpr v1.2.0
+# github.com/rupor-github/gclpr v1.2.1
 ## explicit; go 1.17
 github.com/rupor-github/gclpr/server
 github.com/rupor-github/gclpr/util

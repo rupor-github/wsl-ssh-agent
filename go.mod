@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/allan-simon/go-singleinstance v0.0.0-20210120080615-d0997106ab37
-	github.com/rupor-github/gclpr v1.2.0
+	github.com/rupor-github/gclpr v1.2.1
 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 	honnef.co/go/tools v0.3.0
 )
