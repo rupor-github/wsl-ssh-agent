@@ -13,7 +13,8 @@ import (
 	"strings"
 
 	"honnef.co/go/tools/analysis/code"
-	"honnef.co/go/tools/analysis/facts"
+	"honnef.co/go/tools/analysis/facts/directives"
+	"honnef.co/go/tools/analysis/facts/generated"
 	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/analysis/report"
 	"honnef.co/go/tools/go/ast/astutil"
@@ -432,7 +433,7 @@ var Analyzer = &lint.Analyzer{
 		Name:       "U1000",
 		Doc:        "Unused code",
 		Run:        run,
-		Requires:   []*analysis.Analyzer{buildir.Analyzer, facts.Generated, facts.Directives},
+		Requires:   []*analysis.Analyzer{buildir.Analyzer, generated.Analyzer, directives.Analyzer},
 		ResultType: reflect.TypeOf(Result{}),
 	},
 }
@@ -520,7 +521,7 @@ func debugf(f string, v ...interface{}) {
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	irpkg := pass.ResultOf[buildir.Analyzer].(*buildir.IR)
-	dirs := pass.ResultOf[facts.Directives].([]lint.Directive)
+	dirs := pass.ResultOf[directives.Analyzer].([]lint.Directive)
 	pkg := &pkg{
 		Fset:       pass.Fset,
 		Files:      pass.Files,
@@ -832,6 +833,9 @@ func (g *graph) see(obj interface{}) *node {
 	if fn, ok := obj.(*types.Func); ok {
 		obj = typeparams.OriginMethod(fn)
 	}
+	if t, ok := obj.(*types.Named); ok {
+		obj = typeparams.NamedTypeOrigin(t)
+	}
 
 	// add new node to graph
 	node, _ := g.node(obj)
@@ -869,6 +873,13 @@ func (g *graph) use(used, by interface{}, kind edgeKind) {
 	}
 	if fn, ok := by.(*types.Func); ok {
 		by = typeparams.OriginMethod(fn)
+	}
+
+	if t, ok := used.(*types.Named); ok {
+		used = typeparams.NamedTypeOrigin(t)
+	}
+	if t, ok := by.(*types.Named); ok {
+		by = typeparams.NamedTypeOrigin(t)
 	}
 
 	usedNode, new := g.node(used)
@@ -1427,13 +1438,14 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 		// Nothing to do
 	case *types.Named:
 		// (9.3) types use their underlying and element types
-		g.seeAndUse(t.Underlying(), t, edgeUnderlyingType)
+		origin := typeparams.NamedTypeOrigin(t)
+		g.seeAndUse(origin.Underlying(), t, edgeUnderlyingType)
 		g.seeAndUse(t.Obj(), t, edgeTypeName)
 		g.seeAndUse(t, t.Obj(), edgeNamedType)
 
 		// (2.4) named types use the pointer type
 		if _, ok := t.Underlying().(*types.Interface); !ok && t.NumMethods() > 0 {
-			g.seeAndUse(g.newPointer(t), t, edgePointerType)
+			g.seeAndUse(g.newPointer(origin), t, edgePointerType)
 		}
 
 		// (2.5) named types use their type parameters
@@ -1462,7 +1474,7 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 			g.function(g.pkg.IR.Prog.FuncValue(t.Method(i)))
 		}
 
-		g.typ(t.Underlying(), t)
+		g.typ(origin.Underlying(), t)
 	case *types.Slice:
 		// (9.3) types use their underlying and element types
 		g.seeAndUse(t.Elem(), t, edgeElementType)
@@ -1619,12 +1631,17 @@ func (g *graph) instructions(fn *ir.Function) {
 			}
 			switch instr := instr.(type) {
 			case *ir.Field:
+				// Can't access fields via generics, for now.
+
 				st := instr.X.Type().Underlying().(*types.Struct)
 				field := st.Field(instr.Field)
 				// (4.7) functions use fields they access
 				g.seeAndUse(field, fnObj, edgeFieldAccess)
 			case *ir.FieldAddr:
-				st := typeutil.Dereference(instr.X.Type()).Underlying().(*types.Struct)
+				// User code can't access fields on type parameters, but composite literals are still possible, which
+				// compile to FieldAddr + Store.
+
+				st := typeutil.CoreType(typeutil.Dereference(instr.X.Type())).(*types.Struct)
 				field := st.Field(instr.Field)
 				// (4.7) functions use fields they access
 				g.seeAndUse(field, fnObj, edgeFieldAccess)
@@ -1646,8 +1663,8 @@ func (g *graph) instructions(fn *ir.Function) {
 			case *ir.ChangeType:
 				// conversion type handled generically
 
-				s1, ok1 := typeutil.Dereference(instr.Type()).Underlying().(*types.Struct)
-				s2, ok2 := typeutil.Dereference(instr.X.Type()).Underlying().(*types.Struct)
+				s1, ok1 := typeutil.CoreType(typeutil.Dereference(instr.Type())).(*types.Struct)
+				s2, ok2 := typeutil.CoreType(typeutil.Dereference(instr.X.Type())).(*types.Struct)
 				if ok1 && ok2 {
 					// Converting between two structs. The fields are
 					// relevant for the conversion, but only if the

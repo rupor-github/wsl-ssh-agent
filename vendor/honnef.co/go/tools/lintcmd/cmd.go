@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/pprof"
@@ -392,8 +393,8 @@ func (cmd *Command) Run() {
 			var err error
 			bconfs, err = parseBuildConfigs(os.Stdin)
 			if err != nil {
-				if err, ok := err.(parseBuildConfigError); ok {
-					fmt.Fprintf(os.Stderr, "<stdin>:%d couldn't parse build matrix: %s\n", err.line, err.err)
+				if perr, ok := err.(parseBuildConfigError); ok {
+					fmt.Fprintf(os.Stderr, "<stdin>:%d couldn't parse build matrix: %s\n", perr.line, perr.err)
 				} else {
 					fmt.Fprintln(os.Stderr, err)
 				}
@@ -436,7 +437,46 @@ func (cmd *Command) Run() {
 				fmt.Fprintln(os.Stderr, "warning:", w)
 			}
 
+			cwd, err := os.Getwd()
+			if err != nil {
+				cwd = ""
+			}
+			relPath := func(s string) string {
+				if cwd == "" {
+					return filepath.ToSlash(s)
+				}
+				out, err := filepath.Rel(cwd, s)
+				if err != nil {
+					return filepath.ToSlash(s)
+				}
+				return filepath.ToSlash(out)
+			}
+
 			if cmd.flags.formatter == "binary" {
+				for i, s := range res.CheckedFiles {
+					res.CheckedFiles[i] = relPath(s)
+				}
+				for i := range res.Diagnostics {
+					// We turn all paths into relative, /-separated paths. This is to make -merge work correctly when
+					// merging runs from different OSs, with different absolute paths.
+					//
+					// We zero out Offset, because checkouts of code on different OSs may have different kinds of
+					// newlines and thus different offsets. We don't ever make use of the Offset, anyway. Line and
+					// column numbers are precomputed.
+
+					d := &res.Diagnostics[i]
+					d.Position.Filename = relPath(d.Position.Filename)
+					d.Position.Offset = 0
+					d.End.Filename = relPath(d.End.Filename)
+					d.End.Offset = 0
+					for j := range d.Related {
+						r := &d.Related[j]
+						r.Position.Filename = relPath(r.Position.Filename)
+						r.Position.Offset = 0
+						r.End.Filename = relPath(r.End.Filename)
+						r.End.Offset = 0
+					}
+				}
 				err := gob.NewEncoder(os.Stdout).Encode(res)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "failed writing output: %s\n", err)
@@ -497,6 +537,7 @@ func (cmd *Command) exit(code int) {
 	os.Exit(code)
 }
 
+// printDiagnostics prints the diagnostics and exits the process.
 func (cmd *Command) printDiagnostics(cs []*lint.Analyzer, diagnostics []diagnostic) {
 	if len(diagnostics) > 1 {
 		sort.Slice(diagnostics, func(i, j int) bool {

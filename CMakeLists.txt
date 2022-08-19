@@ -37,7 +37,7 @@ endif()
 set(DEST_DIR "${PROJECT_SOURCE_DIR}/bin")
 message(STATUS "Installation directory: ${DEST_DIR}")
 
-set(GO_MIN_REQURED_VERSION 1.17)
+set(GO_MIN_REQURED_VERSION 1.19)
 find_package(Go ${GO_MIN_REQURED_VERSION} REQUIRED)
 find_package(Git REQUIRED)
 
@@ -60,7 +60,7 @@ endif()
 # Project version number
 set(PRJ_VERSION_Major "1")
 set(PRJ_VERSION_Minor "6")
-set(PRJ_VERSION_Patch "1")
+set(PRJ_VERSION_Patch "2")
 
 if (EXISTS "${PROJECT_SOURCE_DIR}/.git" AND IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
     execute_process(COMMAND ${CMAKE_SOURCE_DIR}/cmake/githash.sh ${GIT_EXECUTABLE}
