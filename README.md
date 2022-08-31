@@ -5,7 +5,7 @@
 
 # IMPORTANT NOTE ON HISTORY
 
-This project was started at the time when WSL2 did not exist and Microsoft just implemented AF_UNIX socket support. Today is is useful only when WSL1 is being required - which is really rare. Sharing Windows side ssh-agent with WSL2 does not require `wsl-ssh-agent.exe` at all!
+This project was started at the time when WSL2 did not exist and Microsoft just implemented AF_UNIX socket support. Today is is useful only when WSL1 is being required - which is really rare. Sharing Windows side ssh-agent with WSL2 does not need `wsl-ssh-agent.exe` at all!
 
 ## WSL2 compatibility
 
