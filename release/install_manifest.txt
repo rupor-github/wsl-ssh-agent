@@ -1,2 +1,0 @@
-/home/rupor/projects/github.com/rupor-github/wsl-ssh-agent/bin/changelog.txt
-/home/rupor/projects/github.com/rupor-github/wsl-ssh-agent/bin/wsl-ssh-agent-gui.exe

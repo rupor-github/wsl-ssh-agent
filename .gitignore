@@ -12,6 +12,7 @@
 *.syso
 
 build/
+release/
 
 # build specific
 misc/version.go
