@@ -4,6 +4,10 @@
 # ${HOME}/.local/bin/wsl-ssh-agent-relay start
 # export SSH_AUTH_SOCK=${HOME}/.ssh/wsl-ssh-agent.sock
 
+# If you do not want the ssh agent relay require your ssh agent
+# to be running at the time relay is started add the option -c
+# to wsl-ssh-agent-relay.
+
 # For debugging startup problems uncomment next line
 # exec 2> >(tee -a -i "$HOME/error.log")
 
@@ -47,9 +51,11 @@ usage() {
     log "           To debug use foreground command"
     log ""
     log "  OPTIONS:"
-    log "    -h|--help     this page"
+    log "    -h|--help          this page"
     log ""
-    log "    -v|--verbose  verbose mode"
+    log "    -v|--verbose       verbose mode"
+    log ""
+    log "    -s|--skip-test     skip ssh-agent communication test"
     log ""
     log "  COMMAND: start, stop, foreground"
 }
@@ -60,17 +66,26 @@ fg_opts() {
     if [[ -n "$VERBOSE" ]]; then
         FG_OPTS+=("-v")
     fi
+    if [[ -n "$NO_COM_TEST" ]]; then
+        FG_OPTS+=("-c")
+    fi
 }
 
 main() {
 
     POSITIONAL=()
     VERBOSE=""
+    SKIP_SSH_TEST=""
     while (($# > 0)); do
         case "$1" in
         -v | --verbose)
             VERBOSE="ENABLED"
             shift # shift once since flags have no values
+            ;;
+
+        -s | --skip-test)
+            SKIP_SSH_TEST="TRUE"
+            shift
             ;;
 
         -h | --help)
@@ -151,11 +166,13 @@ relay() {
     fi
     log "Relay is running with PID: ${SOCAT_WSL_AGENT_SSH_PID}"
 
-    log -n "Polling remote ssh-agent..."
-    SSH_AUTH_SOCK="${WSL_AGENT_SSH_SOCK}" ssh-add -L >/dev/null 2>&1 || die "[$?] Failure communicating with ssh-agent"
-    log "OK"
+    if [[ -z "$SKIP_SSH_TEST" ]]; then
+        log -n "Polling remote ssh-agent..."
+        SSH_AUTH_SOCK="${WSL_AGENT_SSH_SOCK}" ssh-add -L >/dev/null 2>&1 || die "[$?] Failure communicating with ssh-agent"
+        log "OK"
+    fi
 
-    # Everything checks, we are ready for actions
+    # Everything necessary checks, we are ready for actions
     log "Entering wait..."
     wait ${SOCAT_WSL_AGENT_SSH_PID}
 }
