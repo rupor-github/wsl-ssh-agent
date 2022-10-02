@@ -4,6 +4,10 @@
 # ${HOME}/.local/bin/wsl-ssh-agent-relay start
 # export SSH_AUTH_SOCK=${HOME}/.ssh/wsl-ssh-agent.sock
 
+# If you do not want the ssh agent relay require your ssh agent
+# to be running at the time relay is started add the option -c
+# to wsl-ssh-agent-relay.
+
 # For debugging startup problems uncomment next line
 # exec 2> >(tee -a -i "$HOME/error.log")
 
@@ -47,9 +51,13 @@ usage() {
     log "           To debug use foreground command"
     log ""
     log "  OPTIONS:"
-    log "    -h|--help     this page"
+    log "    -h|--help          this page"
     log ""
-    log "    -v|--verbose  verbose mode"
+    log "    -v|--verbose       verbose mode"
+    log ""
+    log "    -c|--no-com-test   Continue running regardless failed communication test."
+    log "                       Use with start and foreground commands when ssh agent"
+    log "                       is not running or ready yet."
     log ""
     log "  COMMAND: start, stop, foreground"
 }
@@ -60,17 +68,26 @@ fg_opts() {
     if [[ -n "$VERBOSE" ]]; then
         FG_OPTS+=("-v")
     fi
+    if [[ -n "$NO_COM_TEST" ]]; then
+        FG_OPTS+=("-c")
+    fi
 }
 
 main() {
 
     POSITIONAL=()
     VERBOSE=""
+    NO_COM_TEST=""
     while (($# > 0)); do
         case "$1" in
         -v | --verbose)
             VERBOSE="ENABLED"
             shift # shift once since flags have no values
+            ;;
+
+        -c | --no-com-test)
+            NO_COM_TEST="TRUE"
+            shift
             ;;
 
         -h | --help)
@@ -152,8 +169,18 @@ relay() {
     log "Relay is running with PID: ${SOCAT_WSL_AGENT_SSH_PID}"
 
     log -n "Polling remote ssh-agent..."
-    SSH_AUTH_SOCK="${WSL_AGENT_SSH_SOCK}" ssh-add -L >/dev/null 2>&1 || die "[$?] Failure communicating with ssh-agent"
-    log "OK"
+    SSH_AUTH_SOCK="${WSL_AGENT_SSH_SOCK}" ssh-add -L >/dev/null 2>&1
+    status=$?
+    if [[ "$status" != 0 ]]; then
+        log "[$status] Failure communicating with ssh-agent"
+        if [[ -n "$NO_COM_TEST" ]]; then
+            log "Continuing despite the failed communication test."
+        else
+            die
+        fi
+    else
+        log "OK"
+    fi
 
     # Everything checks, we are ready for actions
     log "Entering wait..."
