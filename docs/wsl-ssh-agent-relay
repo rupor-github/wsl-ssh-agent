@@ -5,7 +5,7 @@
 # export SSH_AUTH_SOCK=${HOME}/.ssh/wsl-ssh-agent.sock
 
 # If you do not want the ssh agent relay require your ssh agent
-# to be running at the time relay is started add the option -c
+# to be running at the time relay is started add the option -s
 # to wsl-ssh-agent-relay.
 
 # For debugging startup problems uncomment next line
