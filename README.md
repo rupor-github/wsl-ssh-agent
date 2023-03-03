@@ -9,7 +9,7 @@ This project was started at the time when WSL2 did not exist and Microsoft just 
 
 ## WSL2 compatibility
 
-At the moment AF_UNIX interop does not seems to be working with WSL2 VMs. Hopefully this will be sorted out eventually. Meantime there is an easy workaround (proposed by multiple people) which does not use `wsl-ssh-agent.exe` and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). *For example* put `npiperelay.exe` on devfs for interop to work its magic (I have `winhome ⇒ /mnt/c/Users/rupor`, copy [wsl-ssh-agent-relay](docs/wsl-ssh-agent-relay) into your `~/.local/bin directory`, and add following 2 lines to your .bashrc/.zshrc file:
+At the moment AF_UNIX interop does not seems to be working with WSL2 VMs. Hopefully this will be sorted out eventually. Meantime there is an easy workaround (proposed by multiple people) which does not use `wsl-ssh-agent.exe` and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). *For example* put `npiperelay.exe` on drvfs for interop to work its magic (I have `winhome ⇒ /mnt/c/Users/rupor`, copy [wsl-ssh-agent-relay](docs/wsl-ssh-agent-relay) into your `~/.local/bin directory`, and add following 2 lines to your .bashrc/.zshrc file:
 
 ```bash
 ${HOME}/.local/bin/wsl-ssh-agent-relay start
