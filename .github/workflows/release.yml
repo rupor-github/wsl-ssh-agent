@@ -45,7 +45,7 @@ jobs:
       # After lunar this could be replaced with "apt install minisign"
       uses: thomasdesr/minisign-action@v1
       with:
-        args: -Sm gclpr_*.zip
+        args: -Sm wsl-ssh-agent.zip
         minisign_key: ${{ secrets.minisign_key }}
         password: ${{ secrets.minisign_password }}
 
