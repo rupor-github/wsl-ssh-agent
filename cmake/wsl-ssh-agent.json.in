@@ -6,7 +6,7 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/rupor-github/wsl-ssh-agent/releases/download/v@PRJ_VERSION_Major@.@PRJ_VERSION_Minor@.@PRJ_VERSION_Patch@/wsl-ssh-agent.zip",
-            "hash": "__CURRENT_HASH__"
+            "hash": "__CURRENT_HASH_win64__"
         }
     },
     "shortcuts": [

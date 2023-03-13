@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/rpc"
 	"strings"
+	"sync/atomic"
 
 	"golang.org/x/crypto/nacl/sign"
 )
@@ -17,9 +18,10 @@ import (
 const DefaultPort = 2850
 
 type secConn struct {
-	conn  net.Conn
-	pkeys map[[32]byte][32]byte
-	magic []byte
+	conn   net.Conn
+	pkeys  map[[32]byte][32]byte
+	magic  []byte
+	locked *int32
 }
 
 func (sc *secConn) Read(p []byte) (n int, err error) {
@@ -32,6 +34,11 @@ func (sc *secConn) Read(p []byte) (n int, err error) {
 	n, err = sc.conn.Read(in)
 	if err != nil {
 		return
+	}
+
+	if sc.locked != nil && atomic.LoadInt32(sc.locked) == 1 {
+		log.Print("Session is locked - exiting from Read")
+		return 0, io.ErrUnexpectedEOF
 	}
 
 	if n <= len(sc.magic)+len(hpk)+sign.Overhead {
@@ -74,7 +81,7 @@ func (sc *secConn) Close() error {
 }
 
 // Serve handles backend rpc calls.
-func Serve(ctx context.Context, port int, le string, pkeys map[[32]byte][32]byte, magic []byte) error {
+func Serve(ctx context.Context, port int, le string, pkeys map[[32]byte][32]byte, magic []byte, locked *int32) error {
 
 	if err := rpc.Register(NewURI()); err != nil {
 		return fmt.Errorf("unable to register URI rpc object: %w", err)
@@ -117,9 +124,10 @@ func Serve(ctx context.Context, port int, le string, pkeys map[[32]byte][32]byte
 			rpc.ServeConn(sc)
 			log.Printf("gclpr server handled request from '%s'", sc.conn.RemoteAddr())
 		}(&secConn{
-			conn:  conn,
-			pkeys: pkeys,
-			magic: magic,
+			conn:   conn,
+			pkeys:  pkeys,
+			magic:  magic,
+			locked: locked,
 		})
 	}
 }

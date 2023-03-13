@@ -1,5 +1,9 @@
 package misc
 
+func GetMagic() []byte {
+	return []byte{'g', 'c', 'l', 'p', 'r', @PRJ_VERSION_Major@, @PRJ_VERSION_Minor@, @PRJ_VERSION_Patch@}
+}
+
 func GetVersion() string {
 	return "@PRJ_VERSION_Major@.@PRJ_VERSION_Minor@.@PRJ_VERSION_Patch@"
 }

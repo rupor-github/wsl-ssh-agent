@@ -4,7 +4,7 @@
 package util
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"unsafe"
 
@@ -30,7 +30,7 @@ func NewLogWriter(title string, flags int, debug bool) {
 		res := &logWriter{proc: kernel.NewProc("OutputDebugStringW")}
 		log.SetOutput(res)
 	} else {
-		log.SetOutput(ioutil.Discard)
+		log.SetOutput(io.Discard)
 	}
 }
 

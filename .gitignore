@@ -12,9 +12,7 @@
 *.syso
 
 build/
-release/
-
-# build specific
+build_*/
 misc/version.go
 cmd/*/resources.rc
 cmd/*/manifest.xml

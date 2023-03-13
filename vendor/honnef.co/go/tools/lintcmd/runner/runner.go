@@ -2,7 +2,7 @@
 // of on-disk caching to reduce overall memory usage and to speed up
 // repeat runs.
 //
-// Public API
+// # Public API
 //
 // A Runner maps a list of analyzers and package patterns to a list of
 // results. Results provide access to diagnostics, directives, errors
@@ -12,7 +12,7 @@
 // that requires access to the loaded representation of a package has
 // to occur inside analyzers.
 //
-// Planning and execution
+// # Planning and execution
 //
 // Analyzing packages is split into two phases: planning and
 // execution.
@@ -38,7 +38,7 @@
 // execution of individual analyzers is bounded by the same semaphore
 // as executing packages.
 //
-// Parallelism
+// # Parallelism
 //
 // Actions are executed in parallel where the dependency graph allows.
 // Overall parallelism is bounded by a semaphore, sized according to
@@ -56,7 +56,7 @@
 // the dependency graph. A lot of inter-connected packages will see
 // less parallelism than a lot of independent packages.
 //
-// Caching
+// # Caching
 //
 // The runner caches facts, directives and diagnostics in a
 // content-addressable cache that is designed after Go's own cache.
@@ -209,7 +209,7 @@ func serializeDirective(dir lint.Directive, fset *token.FileSet) SerializedDirec
 type ResultData struct {
 	Directives  []SerializedDirective
 	Diagnostics []Diagnostic
-	Unused      unused.SerializedResult
+	Unused      unused.Result
 }
 
 func (r Result) Load() (ResultData, error) {
@@ -236,6 +236,8 @@ type TestData struct {
 	// Unlike vetx, this list only contains facts specific to this package,
 	// not all facts for the transitive closure of dependencies.
 	Facts []TestFact
+	// List of files that were part of the package.
+	Files []string
 }
 
 // LoadTest returns data relevant to testing.
@@ -626,6 +628,7 @@ func (r *subrunner) do(act action) error {
 		if r.TestMode {
 			out := TestData{
 				Facts: result.testFacts,
+				Files: result.lpkg.GoFiles,
 			}
 			a.testData, err = r.writeCacheGob(a, "testdata", out)
 			if err != nil {
@@ -674,7 +677,7 @@ func (r *Runner) writeCacheGob(a *packageAction, kind string, data interface{}) 
 type packageActionResult struct {
 	facts   []gobFact
 	diags   []Diagnostic
-	unused  unused.SerializedResult
+	unused  unused.Result
 	dirs    []lint.Directive
 	lpkg    *loader.Package
 	skipped bool
@@ -998,7 +1001,7 @@ func (ar *analyzerRunner) do(act action) error {
 type analysisResult struct {
 	facts       []gobFact
 	diagnostics []Diagnostic
-	unused      unused.SerializedResult
+	unused      unused.Result
 
 	// Only set when using test mode
 	testFacts []TestFact
@@ -1063,12 +1066,12 @@ func (r *subrunner) runAnalyzers(pkgAct *packageAction, pkg *loader.Package) (an
 		}
 	}
 
-	var unusedResult unused.SerializedResult
+	var unusedResult unused.Result
 	for _, a := range all {
 		if a != root && a.Analyzer.Name == "U1000" && !a.failed {
 			// TODO(dh): figure out a clean abstraction, instead of
 			// special-casing U1000.
-			unusedResult = unused.Serialize(a.Pass, a.Result.(unused.Result), pkg.Fset)
+			unusedResult = a.Result.(unused.Result)
 		}
 
 		for key, fact := range a.ObjectFacts {

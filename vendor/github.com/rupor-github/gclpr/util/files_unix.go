@@ -1,4 +1,4 @@
-// +build !windows
+//go:build linux || darwin
 
 package util
 

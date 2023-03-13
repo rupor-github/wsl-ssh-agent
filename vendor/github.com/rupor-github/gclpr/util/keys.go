@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -32,7 +31,7 @@ func ReadKeys(home string) (*[32]byte, *[64]byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("public key file permissions are too open: %w", err)
 	}
-	pubkey, err := ioutil.ReadFile(fn)
+	pubkey, err := os.ReadFile(fn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to read public key: %w", err)
 	}
@@ -45,7 +44,7 @@ func ReadKeys(home string) (*[32]byte, *[64]byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("private key file permissions are too open: %w", err)
 	}
-	key, err := ioutil.ReadFile(fn)
+	key, err := os.ReadFile(fn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to read private key: %w", err)
 	}
@@ -74,12 +73,12 @@ func CreateKeys(home string) (*[32]byte, *[64]byte, error) {
 	}
 
 	//nolint:gosec
-	err = ioutil.WriteFile(filepath.Join(kd, "key.pub"), pk[:], 0644)
+	err = os.WriteFile(filepath.Join(kd, "key.pub"), pk[:], 0644)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to save public key: %w", err)
 	}
 
-	err = ioutil.WriteFile(filepath.Join(kd, "key"), k[:], 0600)
+	err = os.WriteFile(filepath.Join(kd, "key"), k[:], 0600)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to save private key: %w", err)
 	}
@@ -103,7 +102,7 @@ func ReadTrustedKeys(home string) (map[[32]byte][32]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("trusted keys file permissions are too open: %w", err)
 	}
-	content, err := ioutil.ReadFile(fn)
+	content, err := os.ReadFile(fn)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read public key: %w", err)
 	}

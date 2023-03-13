@@ -1,5 +1,4 @@
-//go:build windows
-// +build windows
+// go:build windows
 
 // Package systray is a cross-platform Go library to place an icon and menu in the notification area.
 package systray
@@ -111,8 +110,7 @@ func newMenuItem(title string, tooltip string, parent *MenuItem) *MenuItem {
 	}
 }
 
-// Run initializes GUI and starts the event loop, then invokes the onReady
-// callback. It blocks until systray.Quit() is called.
+// Run initializes GUI and starts the event loop, then invokes the onReady callback. It blocks until systray.Quit() is called.
 func Run(onReady func(), onExit func(), onSessionEvent func(SessionEvent)) {
 	Register(onReady, onExit, onSessionEvent)
 	nativeLoop()

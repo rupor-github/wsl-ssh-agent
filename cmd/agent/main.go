@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -23,9 +22,9 @@ import (
 	cliputil "github.com/rupor-github/gclpr/util"
 	"golang.org/x/sys/windows"
 
-	"github.com/rupor-github/wsl-ssh-agent/misc"
-	"github.com/rupor-github/wsl-ssh-agent/systray"
-	"github.com/rupor-github/wsl-ssh-agent/util"
+	"wsl-ssh-agent/misc"
+	"wsl-ssh-agent/systray"
+	"wsl-ssh-agent/util"
 )
 
 const (
@@ -93,7 +92,7 @@ func onExit() {
 }
 
 func makeSocketName() (string, error) {
-	f, err := ioutil.TempFile("", "ssh-*.sock")
+	f, err := os.CreateTemp("", "ssh-*.sock")
 	if err != nil {
 		return "", err
 	}
@@ -268,17 +267,22 @@ func clipServe() error {
 		return nil
 	}
 
-	if len(pkeys) > 0 {
-		// we have possible clients for remote clipboard
-		clipHelp = fmt.Sprintf("gclpr is serving %d key(s) on port %d", len(pkeys), clipPort)
-		go func() {
-			compatibleMagic := []byte{'g', 'c', 'l', 'p', 'r', 1, 1, 0}
-			if err := clip.Serve(clipCtx, clipPort, clipLE, pkeys, compatibleMagic); err != nil {
-				log.Printf("gclpr serve() returned error: %s", err.Error())
-				clipHelp = "gclpr is not served"
-			}
-		}()
+	if len(pkeys) == 0 {
+		return nil
 	}
+
+	// we have possible clients for remote clipboard
+	clipHelp = fmt.Sprintf("gclpr is serving %d key(s) on port %d", len(pkeys), clipPort)
+	go func() {
+		lock := &locked
+		if ignorelock {
+			lock = nil // ignore session messages
+		}
+		if err := clip.Serve(clipCtx, clipPort, clipLE, pkeys, misc.GetMagic(), lock); err != nil {
+			log.Printf("gclpr serve() returned error: %s", err.Error())
+			clipHelp = "gclpr is not served"
+		}
+	}()
 	return nil
 }
 

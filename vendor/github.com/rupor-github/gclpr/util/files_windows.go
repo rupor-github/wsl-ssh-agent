@@ -1,7 +1,5 @@
 //go:build windows
-// +build windows
 
-//nolint
 package util
 
 import (
