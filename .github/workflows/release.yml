@@ -60,4 +60,4 @@ jobs:
         files: |
           wsl-ssh-agent.json
           wsl-ssh-agent.zip
-          wsl-ssh-agnt.zip.minisig
+          wsl-ssh-agent.zip.minisig
