@@ -168,7 +168,8 @@ relay() {
 
     if [[ -z "$SKIP_SSH_TEST" ]]; then
         log -n "Polling remote ssh-agent..."
-        SSH_AUTH_SOCK="${WSL_AGENT_SSH_SOCK}" ssh-add -L >/dev/null 2>&1 || die "[$?] Failure communicating with ssh-agent"
+        SSH_AUTH_SOCK="${WSL_AGENT_SSH_SOCK}" ssh-add -L >/dev/null 2>&1
+        [[ "$?" -ge 2 ]] && die "[$?] Failure communicating with ssh-agent"
         log "OK"
     fi
 
