@@ -167,9 +167,11 @@ relay() {
     log "Relay is running with PID: ${SOCAT_WSL_AGENT_SSH_PID}"
 
     if [[ -z "$SKIP_SSH_TEST" ]]; then
+        local res
         log -n "Polling remote ssh-agent..."
         SSH_AUTH_SOCK="${WSL_AGENT_SSH_SOCK}" ssh-add -L >/dev/null 2>&1
-        [[ "$?" -ge 2 ]] && die "[$?] Failure communicating with ssh-agent"
+        res=$?
+        [[ "${res}" -ge 2 ]] && die "[${res}] Failure communicating with ssh-agent"
         log "OK"
     fi
 
