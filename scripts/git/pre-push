@@ -1,0 +1,38 @@
+#!/bin/bash
+# To use, store as .git/hooks/pre-push inside your repository and make sure
+# it has execute permissions.
+
+# run security/vulnerabilities scanner prior to pushing to repo
+
+scanner=$(command -v trivy || command -v govulncheck)
+if [ -z "${scanner}" ]; then
+    echo "==== No suitable (govulncheck or trivy) vulnerabilities scanner is installed. Make sure it is installed and path is set correctly"
+    echo
+    echo "     To install govulncheck you could use something similar to \"GOBIN=<DIR_OF_YOUR_CHOICE> go install golang.org/x/vuln/cmd/govulncheck@latest\""
+    echo "     and make sure that <DIR_OF_YOUR_CHOICE> is added to PATH"
+    echo
+    echo "     To install trivy follow instructions on https://github.com/aquasecurity/trivy/blob/main/docs/getting-started/installation.md#debianubuntu"
+    exit 1
+fi
+
+echo "==== running ${scanner} from $0"
+if [ "$(basename ${scanner})" = "trivy" ]; then
+    echo "     to accept risks create a .trivyignore file in repo's root"
+    echo "     See https://github.com/aquasecurity/trivy/blob/main/docs/docs/vulnerability/examples/filter.md#by-vulnerability-ids"
+    # without the --exit-code 1 flag - trivy always exists with 0
+    ${scanner} --exit-code 1 fs --ignore-unfixed .
+elif [ "$(basename ${scanner})" = "govulncheck" ]; then
+    set -eo pipefail
+    tmp="$(mktemp)"
+	${scanner} -show color,verbose ./... |& tee ${tmp}
+    # govulncheck ignores vulnerabilities in the imported packages if it thinks our code is not calling relevant functionality
+    # at the moment we do not want this...
+	if grep -qE 'Vulnerability.* #' ${tmp}; then
+    	echo
+        echo $(tput setaf 4)"=== Found vulnerabilities, please fix them before pushing"$(tput sgr0)
+        exit 1
+    fi
+else
+    echo "==== WTF is ${scanner}?"
+    exit 2
+fi

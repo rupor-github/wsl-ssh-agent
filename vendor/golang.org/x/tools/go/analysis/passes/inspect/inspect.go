@@ -38,11 +38,12 @@ import (
 var Analyzer = &analysis.Analyzer{
 	Name:             "inspect",
 	Doc:              "optimize AST traversal for later passes",
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/inspect",
 	Run:              run,
 	RunDespiteErrors: true,
 	ResultType:       reflect.TypeOf(new(inspector.Inspector)),
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	return inspector.New(pass.Files), nil
 }

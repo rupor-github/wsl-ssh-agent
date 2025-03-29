@@ -1,0 +1,435 @@
+version: '3'
+
+output: 'group'
+silent: true
+
+# we are assuming that host os is always Linux
+
+vars:
+  GO_VERSION_FULL: {sh: GOTOOLCHAIN=local+path go version}
+  GO_VERSION: '{{regexFind "[0-9]+\\.[0-9]+\\.?[0-9]*" (regexFind "go version go[0-9]+\\.[0-9]+\\.?[0-9]*[a-zA-Z0-9]* [^/]+/.*" .GO_VERSION_FULL)}}'
+
+  PRJ_NAME: 'wsl-ssh-agent'
+  DEV_BUILD_DIR: 'build'
+  REL_BUILD_DIR: 'release'
+
+  REF_VER: '{{regexFind "refs/tags/v[0-9]+\\.[0-9]+\\.?[0-9]*[-a-zA-Z0-9+]*" (env "GITHUB_REF")}}'
+
+  # presently only win64 is supported
+  TARGET_RELEASES: [windows-amd64-.exe]
+
+  TATN: {sh: '{{if (env "TERM")}}tput setaf 4{{end}}'}
+  TOFF: {sh: '{{if (env "TERM")}}tput sgr0{{end}}'}
+
+env:
+  CGO_ENABLED: '0'
+  GOPATH: '{{default (joinPath (default "/tmp" (env "TEMP")) "gopkg_wsl_ssh_agent") (env "GOPATH")}}'
+  GOTOOLCHAIN: 'local+path'
+
+tasks:
+
+  default:
+    desc: Builds development version (windows 64)
+    aliases: [debug]
+    platforms: [linux]
+    deps:
+      - task: copy-file
+        vars: {SRC: 'scripts/git/pre-commit', DST: '.git/hooks/pre-commit'}
+      - task: copy-file
+        vars: {SRC: 'scripts/git/pre-push', DST: '.git/hooks/pre-push'}
+      - task: generate-project-version
+    vars:
+      BUILD_DIR: '{{.DEV_BUILD_DIR}}'
+    cmds:
+      - task: generate-manifest
+      - task: generate-resource
+      - x86_64-w64-mingw32-windres -O coff -o /{{.ROOT_DIR}}/cmd/agent/resources.syso -i /{{.ROOT_DIR}}/cmd/agent/resources.rc
+      - task: go-build
+        vars: {GOOS: 'windows', GOARCH: 'amd64', FLAGS: 'debug-gui', PACKAGE: './cmd/agent', TARGET: '{{.BUILD_DIR}}/wsl-ssh-agent-gui.exe'}
+      - task: lint
+
+  test:
+    desc: |
+      Runs available tests.
+      When invoked as usual runs tests for all packages where it can find "*_test.go" files, for example: "task test".
+      You can specify what tests to run by using PACKAGES environment variable, for example: "PACKAGES='./package1,./package2' task test".
+      You can pass any additional parameters supported by "go test", for example: "PACKAGES='./package1' task test -- -run=TestMy".
+    platforms: [linux]
+    deps: [generate-project-version]
+    vars:
+      TEST_DIR: "{{.ROOT_DIR}}/{{.DEV_BUILD_DIR}}/tests_results"
+      DIRS_WITH_TESTS:
+        sh: find -name '*_test.go' -printf "%h\n" | sort -u
+      PACKAGES: '{{default .DIRS_WITH_TESTS (replace "," "\n" (env "PACKAGES"))}}'
+    env:
+      # race instrumentation requires cgo
+      CGO_ENABLED: "1"
+    cmds:
+      - mkdir -p {{.TEST_DIR}}
+      - for: {var: PACKAGES}
+        cmd: |
+          echo
+          echo "{{.TATN}}{{clean .ITEM}} tests...{{.TOFF}}"
+          echo
+          go test -mod=mod -v -coverprofile='{{.TEST_DIR}}/test_{{replace "/" "_" (clean .ITEM)}}_coverage.out' {{.CLI_ARGS}} '{{.ITEM}}'
+
+  release:
+    desc: Cross-builds release for all supported platforms
+    platforms: [linux]
+    deps: [generate-project-version]
+    cmds:
+      - mkdir -p '{{.REL_BUILD_DIR}}'
+      - for:
+          var: TARGET_RELEASES
+        task: release-for-platform-{{with $arch := split "-" .ITEM}}{{$arch._0}}{{end}}
+        vars:
+          GOOS: '{{with $arch := split "-" .ITEM}}{{$arch._0}}{{end}}'
+          GOARCH: '{{with $arch := split "-" .ITEM}}{{$arch._1}}{{end}}'
+          SUFFIX: '{{with $arch := split "-" .ITEM}}{{$arch._2}}{{end}}'
+
+  release-for-platform-windows:
+    internal: true
+    desc: Builds release for specified platform
+    requires:
+      vars: [GOOS, GOARCH, SUFFIX]
+    label: release-for-platform-windows-{{.GOOS}}-{{.GOARCH}}
+    vars:
+      BUILD_DIR: '{{.REL_BUILD_DIR}}_{{.GOOS}}_{{.GOARCH}}'
+      REL_NAME: '{{.REL_BUILD_DIR}}/{{.PRJ_NAME}}'
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - defer: rm -rf {{.BUILD_DIR}}
+      - task: generate-manifest
+      - task: generate-resource
+      - x86_64-w64-mingw32-windres -O coff -o /{{.ROOT_DIR}}/cmd/agent/resources.syso -i /{{.ROOT_DIR}}/cmd/agent/resources.rc
+      - task: go-build
+        vars: {GOOS: '{{.GOOS}}', GOARCH: '{{.GOARCH}}', FLAGS: 'release-gui', PACKAGE: './cmd/agent', TARGET: '{{.BUILD_DIR}}/wsl-ssh-agent-gui{{.SUFFIX}}'}
+      - GOOS={{.GOOS}} GOARCH={{.GOARCH}} go tool -n npiperelay >/dev/null
+      - task: copy-file
+        vars:
+          SRC:
+            sh: GOOS={{.GOOS}} GOARCH={{.GOARCH}} go tool -n npiperelay
+          DST: '{{.BUILD_DIR}}/npiperelay{{.SUFFIX}}'
+      - echo "{{.TATN}}Archiving release \"{{.REL_NAME}}.zip\"{{.TOFF}}"
+      - 7z a -r -bd -bso0 -tzip {{.REL_NAME}} ./{{.BUILD_DIR}}/*
+      - task: generate-scoop-json
+        vars: {TARGET: '{{.REL_NAME}}.zip'}
+    status:
+      - test -f '{{.REL_NAME}}.zip'
+
+  lint:
+    desc: Lints the whole project
+    platforms: [linux]
+    vars:
+      LINTER:
+        sh: go tool -n staticcheck
+    cmds:
+      - echo "{{.TATN}}Linting project{{.TOFF}}"
+      - GOOS=windows {{.LINTER}} -f stylish -tests=false ./...
+    sources:
+      - ./**/*.go
+
+  go-build:
+    internal: true
+    run: when_changed
+    desc: Builds binary using go toolchain
+    requires:
+      vars: [PACKAGE, TARGET, FLAGS]
+    label: go-build-{{.PACKAGE}}-{{.TARGET}}-{{.FLAGS}}
+    env: {GOOS: '{{default "linux" .GOOS}}', GOARCH: '{{default "amd64" .GOARCH}}'}
+    vars:
+      # {{- if hasPrefix "debug" .FLAGS }}-mod=mod{{ else if hasPrefix "release" .FLAGS }}-mod=vendor{{ else }}
+      GOARGS: |
+        {{- if hasPrefix "debug" .FLAGS }}-mod=mod{{ else if hasPrefix "release" .FLAGS }}-mod=mod{{ else }}
+        {{fail "go build flags could be \"debug\" or \"release\" only!"}}
+        {{ end }} -trimpath{{ if hasSuffix "-gui" .FLAGS }} -ldflags='-H=windowsgui'{{ end -}}
+    cmds:
+      - echo "{{.TATN}}Building \"{{base .TARGET}}\" binary for \"$GOOS:$GOARCH\" from \"{{.PACKAGE}}\"{{.TOFF}}"
+      - go build {{.GOARGS}} -o '{{.TARGET}}' '{{.PACKAGE}}'
+    sources:
+      - ./**/*.go
+    generates:
+      - '{{.TARGET}}'
+
+  generate-project-version:
+    internal: true
+    desc: Generates "misc/version.go" file with version info to be used on runtime.
+    run: when_changed
+    vars:
+      VER: '{{if .REF_VER}}{{regexFind "[0-9]+\\.[0-9]+\\.?[0-9]*[-a-zA-Z0-9+]*" .REF_VER}}{{else}}0.0.0-dev{{end}}'
+      MAGIC: '{{regexFind "[0-9]+\\.[0-9]+\\.[0-9]" .VER}}'
+      MAJOR: '{{with $arch := split "." .MAGIC}}{{$arch._0}}{{end}}'
+      MINOR: '{{with $arch := split "." .MAGIC}}{{$arch._1}}{{end}}'
+      PATCH: '{{with $arch := split "." .MAGIC}}{{$arch._2}}{{end}}'
+      DIR: '{{.ROOT_DIR}}/misc'
+      FILE: '{{.ROOT_DIR}}/misc/version.go'
+      GIT_HASH:
+        sh: git rev-list -1 HEAD || true
+      GIT_STATUS:
+        sh: git diff --shortstat
+    cmds:
+      - echo "{{.TATN}}Version {{.VER}} {{.GIT_HASH}}{{if .GIT_STATUS}}*{{end}}{{.TOFF}}"
+      - mkdir -p {{.DIR}}
+      - |
+        cat << EOF > {{.FILE}}
+        package misc
+
+        func GetMagic() []byte {
+          return []byte{'g', 'c', 'l', 'p', 'r', {{.MAJOR}}, {{.MINOR}}, {{.PATCH}}}
+        }
+
+        func GetVersion() string {
+            return "{{.VER}}"
+        }
+
+        func GetGitHash() string {
+            return "{{.GIT_HASH}}{{if .GIT_STATUS}}*{{end}}"
+        }
+        EOF
+      - gofmt -w {{.FILE}}
+    sources:
+      - .git/index
+    generates:
+      - '{{.FILE}}'
+
+  generate-manifest:
+    internal: true
+    desc: Generates windows manifest.
+    run: when_changed
+    vars:
+      VER: '{{if .REF_VER}}{{regexFind "[0-9]+\\.[0-9]+\\.?[0-9]*[-a-zA-Z0-9+]*" .REF_VER}}{{else}}0.0.0-dev{{end}}'
+      MAGIC: '{{regexFind "[0-9]+\\.[0-9]+\\.[0-9]" .VER}}'
+      MAJOR: '{{with $arch := split "." .MAGIC}}{{$arch._0}}{{end}}'
+      MINOR: '{{with $arch := split "." .MAGIC}}{{$arch._1}}{{end}}'
+      PATCH: '{{with $arch := split "." .MAGIC}}{{$arch._2}}{{end}}'
+      DIR: '{{.ROOT_DIR}}/cmd/agent'
+      FILE: '{{.ROOT_DIR}}/cmd/agent/manifest.xml'
+    cmds:
+      - |
+        cat << EOF > {{.FILE}}
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+            <assemblyIdentity
+            type="win32"
+            name="Github.Rupor.WslSshAgentGUI"
+            version="{{.MAJOR}},{{.MINOR}},{{.PATCH}},0"
+            processorArchitecture="*"/>
+          <description>GUI wrapper for ssh-agent</description>
+          <dependency>
+            <dependentAssembly>
+              <assemblyIdentity
+                type="win32"
+                name="Microsoft.Windows.Common-Controls"
+                version="6.0.0.0"
+                processorArchitecture="*"
+                publicKeyToken="6595b64144ccf1df"
+                language="*"
+              />
+            </dependentAssembly>
+          </dependency>
+          <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+            <application>
+              <!--The ID below indicates application support for Windows 10 -->
+              <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+            </application>
+          </compatibility>
+          <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+            <security>
+              <requestedPrivileges>
+                <requestedExecutionLevel
+                  level="asInvoker"
+                  uiAccess="false"
+                />
+              </requestedPrivileges>
+            </security>
+          </trustInfo>
+        </assembly>
+        EOF
+    sources:
+      - .git/index
+    generates:
+      - '{{.FILE}}'
+
+  generate-resource:
+    internal: true
+    desc: Generates rc file for windows gui.
+    run: when_changed
+    vars:
+      VER: '{{if .REF_VER}}{{regexFind "[0-9]+\\.[0-9]+\\.?[0-9]*[-a-zA-Z0-9+]*" .REF_VER}}{{else}}0.0.0-dev{{end}}'
+      MAGIC: '{{regexFind "[0-9]+\\.[0-9]+\\.[0-9]" .VER}}'
+      MAJOR: '{{with $arch := split "." .MAGIC}}{{$arch._0}}{{end}}'
+      MINOR: '{{with $arch := split "." .MAGIC}}{{$arch._1}}{{end}}'
+      PATCH: '{{with $arch := split "." .MAGIC}}{{$arch._2}}{{end}}'
+      DIR: '{{.ROOT_DIR}}/cmd/agent'
+      FILE: '{{.ROOT_DIR}}/cmd/agent/resources.rc'
+    cmds:
+      - |
+        cat << EOF > {{.FILE}}
+        // this is a UTF-8 file
+        #pragma code_page(65001)
+
+        1000 ICON "icon.ico"
+
+        1 VERSIONINFO
+        FILEVERSION    {{.MAJOR}},{{.MINOR}},{{.PATCH}},0
+        PRODUCTVERSION {{.MAJOR}},{{.MINOR}},{{.PATCH}},0
+        FILEFLAGSMASK  0x0000003F
+        FILEFLAGS      0x0
+        FILEOS         0x00040004
+        FILETYPE       0x00000001
+        FILESUBTYPE    0x0
+        {
+            BLOCK "StringFileInfo"
+            {
+                BLOCK "040904b0"
+                {
+                    VALUE "CompanyName",        "KOE-KAK Software.\0"
+                    VALUE "FileDescription",    "Helper to interface with Windows ssh-agent.exe service from WSL\0"
+                    VALUE "FileVersion",        "{{.MAJOR}},{{.MINOR}},{{.PATCH}},0"
+                    VALUE "LegalCopyright",     "Copyright © 2025 rupor-github\0"
+                    VALUE "OriginalFilename",   "wsl-ssh-agent-gui.exe\0"
+                    VALUE "ProductName",        "Simple Windows ssh-agent helper\0"
+                    VALUE "ProductVersion",     "{{.MAJOR}},{{.MINOR}},{{.PATCH}},0"
+                }
+            }
+            BLOCK "VarFileInfo"
+            {
+                VALUE "Translation", 0x409, 1200
+            }
+        }
+
+        // 1 is the value of CREATEPROCESS_MANIFEST_RESOURCE_ID
+        1 RT_MANIFEST "manifest.xml"
+        EOF
+    sources:
+      - .git/index
+    generates:
+      - '{{.FILE}}'
+
+  generate-scoop-json:
+    internal: true
+    desc: Generates scoop manifest for windows gui.
+    run: when_changed
+    requires:
+      vars: [TARGET]
+    vars:
+      VER: '{{if .REF_VER}}{{regexFind "[0-9]+\\.[0-9]+\\.?[0-9]*[-a-zA-Z0-9+]*" .REF_VER}}{{else}}0.0.0-dev{{end}}'
+      MAGIC: '{{regexFind "[0-9]+\\.[0-9]+\\.[0-9]" .VER}}'
+      MAJOR: '{{with $arch := split "." .MAGIC}}{{$arch._0}}{{end}}'
+      MINOR: '{{with $arch := split "." .MAGIC}}{{$arch._1}}{{end}}'
+      PATCH: '{{with $arch := split "." .MAGIC}}{{$arch._2}}{{end}}'
+      DIR: '{{.ROOT_DIR}}'
+      FILE: '{{.ROOT_DIR}}/wsl-ssh-agent.json'
+      HASH:
+        sh: sha256sum -z {{.TARGET}} | awk '{ print $1; }'
+    env:
+      # to put unexpanded "$version" in a file we need this
+      URL: 'https://github.com/rupor-github/wsl-ssh-agent/releases/download/v$version/{{base .TARGET}}'
+    cmds:
+      - |
+        cat << EOF > {{.FILE}}
+        {
+            "version": "{{.MAJOR}}.{{.MINOR}}.{{.PATCH}}",
+            "description": "Simple set of tools to make working with SSH keys easier on Windows.",
+            "homepage": "https://github.com/rupor-github/wsl-ssh-agent",
+            "license": "GPL-3.0",
+            "architecture": {
+                "64bit": {
+                    "url": "https://github.com/rupor-github/wsl-ssh-agent/releases/download/v{{.MAJOR}}.{{.MINOR}}.{{.PATCH}}/{{base .TARGET}}",
+                    "hash": "{{.HASH}}"
+                }
+            },
+            "shortcuts": [
+                [
+                    "wsl-ssh-agent-gui.exe",
+                    "wsl-ssh-agent"
+                ]
+            ],
+            "checkver": {
+                "github": "https://github.com/rupor-github/wsl-ssh-agent"
+            },
+            "autoupdate": {
+                "architecture": {
+                    "64bit": {
+                        "url": "{{print "$URL"}}"
+                    }
+                }
+            }
+        }
+        EOF
+    sources:
+      - .git/index
+    generates:
+      - '{{.FILE}}'
+
+  go-modinit:
+    desc: Using current toolchain (re)initializes go.mod with provided module name, gets latest versions and runs tidy
+    aliases: [modinit]
+    prompt: This will replace your existing go.mod and go.sum if you have any. Do you want to continue?
+    requires:
+      vars: [GO_VERSION]
+    cmds:
+      - echo "{{.TATN}}Running go mod init for \"{{.PRJ_NAME}}\" with {{.GO_VERSION}}{{.TOFF}}"
+      - |
+        [ -f {{.ROOT_DIR}}/go.mod ] && rm {{.ROOT_DIR}}/go.mod || true
+        [ -f {{.ROOT_DIR}}/go.sum ] && rm {{.ROOT_DIR}}/go.sum || true
+      - go mod init {{.PRJ_NAME}}
+      - go mod edit -go {{.GO_VERSION}} -toolchain go{{.GO_VERSION}}
+      - go get -tool honnef.co/go/tools/cmd/staticcheck
+      - go get -tool github.com/jstarks/npiperelay
+      - go get -u ./...
+      - go mod tidy {{.CLI_ARGS}}
+
+  go-tidy:
+    desc: Tidy Go modules for the project.
+    platforms: [linux]
+    aliases: [tidy]
+    cmds:
+      - for:
+          var: TARGET_RELEASES
+        cmd: |
+          echo "Tidying with {{with $arch := split "-" .ITEM}}{{$arch._0}}{{end}} GOARCH={{with $arch := split "-" .ITEM}}{{$arch._1}}{{end}}"
+          GOOS={{with $arch := split "-" .ITEM}}{{$arch._0}}{{end}} GOARCH={{with $arch := split "-" .ITEM}}{{$arch._1}}{{end}} go mod tidy -go={{.GO_VERSION}} {{.CLI_ARGS}}
+
+  go-vendor:
+    desc: Creates vendor directory for release build
+    platforms: [linux]
+    aliases: [vendor]
+    cmds:
+      - for:
+          var: TARGET_RELEASES
+        cmd: |
+          echo "Vendoring with {{with $arch := split "-" .ITEM}}{{$arch._0}}{{end}} GOARCH={{with $arch := split "-" .ITEM}}{{$arch._1}}{{end}}"
+          GOOS={{with $arch := split "-" .ITEM}}{{$arch._0}}{{end}} GOARCH={{with $arch := split "-" .ITEM}}{{$arch._1}}{{end}} go mod vendor {{.CLI_ARGS}}
+
+  clean:
+    desc: Cleans all build release aritfacts
+    platforms: [linux]
+    cmds:
+      - rm -rfv {{.REL_BUILD_DIR}}
+      - rm -rfv {{.DEV_BUILD_DIR}}
+      - rm -fv .task/checksum/*
+      - rm -fv .task/timestamp/*
+      - rm -fv ./cmd/agent/resources.rc
+      - rm -fv ./cmd/agent/manifest.xml
+      - rm -fv ./cmd/agent/resources.syso
+      - rm -fv wsl-ssh-agent.json
+      # - rm -fv misc/version.go
+
+  copy-file:
+    internal: true
+    desc: Copies source file to destination
+    requires:
+      vars: [SRC, DST]
+    label: copy-file-{{.SRC}}-{{.DST}}
+    cmds:
+      - echo "{{.TATN}}Copying \"{{.SRC}}\" to \"{{.DST}}\"{{.TOFF}}"
+      - mkdir -p {{dir .DST}}
+      - cp '{{.SRC}}' '{{.DST}}'
+    sources:
+      - '{{.SRC}}'
+    generates:
+      - '{{.DST}}'
+    status:
+      - test -f '{{.DST}}'
+    method: timestamp

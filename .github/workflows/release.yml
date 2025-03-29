@@ -14,50 +14,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/checkout@v3
-    - uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: binutils-mingw-w64-x86-64
-        version: 1.0
- 
-    - name: Ubuntu version
-      run: lsb_release -a
+      - name: Checkout sources
+        uses: actions/checkout@v4
 
-    - name: Get latest CMake and Ninja
-      uses: lukka/get-cmake@latest
-      with:
-        cmakeVersion: latest
-        ninjaVersion: latest
+      - name: Install mingw-w64 resource compiler
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: mingw-w64 binutils-mingw-w64-x86-64
+          version: 1.0
+   
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
 
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: '1.20'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.1'
 
-    - name: Build - win64
-      env:
-        MSYSTEM_NAME: win64
-      run: |
-        cmake -G Ninja -B build_win64
-        cmake --build build_win64 --target release
+      - name: Build everything
+        run: task release -v
 
-    - name: Sign release artifacts
-      # After lunar this could be replaced with "apt install minisign"
-      uses: thomasdesr/minisign-action@v1
-      with:
-        args: -Sm wsl-ssh-agent.zip
-        minisign_key: ${{ secrets.minisign_key }}
-        password: ${{ secrets.minisign_password }}
+      - name: Sign release artifacts
+        # After lunar this could be replaced with "apt install minisign"
+        uses: thomasdesr/minisign-action@v1
+        with:
+          args: -Sm release/wsl-ssh-agent.zip
+          minisign_key: ${{ secrets.minisign_key }}
+          password: ${{ secrets.minisign_password }}
 
-    - name: List results
-      run: ls -lah wsl-ssh-*
+      - name: List results
+        run: ls -lah release/
 
-    - name: Upload release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        generate_release_notes: true
-        files: |
-          wsl-ssh-agent.json
-          wsl-ssh-agent.zip
-          wsl-ssh-agent.zip.minisig
+      - name: Upload release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            wsl-ssh-agent.json
+            release/wsl-ssh-agent.zip
+            release/wsl-ssh-agent.minisig
