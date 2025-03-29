@@ -9,14 +9,14 @@ This project was started at the time when WSL2 did not exist and Microsoft just 
 
 ## WSL2 compatibility
 
-At the moment AF_UNIX interop does not seems to be working with WSL2 VMs. Hopefully this will be sorted out eventually. Meantime there is an easy workaround (proposed by multiple people) which does not use `wsl-ssh-agent.exe` and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). *For example* put `npiperelay.exe` on drvfs for interop to work its magic (I have `winhome ⇒ /mnt/c/Users/rupor`, copy [wsl-ssh-agent-relay](docs/wsl-ssh-agent-relay) into your `~/.local/bin directory`, and add following 2 lines to your .bashrc/.zshrc file:
+At the moment AF_UNIX interop does not seem to be working with WSL2 VMs. Hopefully this will be sorted out eventually. Meantime there is an easy workaround (proposed by multiple people) which does not use `wsl-ssh-agent.exe` and relies on combination of linux socat tool from your distribution and [npiperelay.exe](https://github.com/jstarks/npiperelay). *For example* put `npiperelay.exe` on drvfs for interop to work its magic (I have `winhome ⇒ /mnt/c/Users/rupor`, copy [wsl-ssh-agent-relay](docs/wsl-ssh-agent-relay) into your `~/.local/bin directory`, and add following 2 lines to your .bashrc/.zshrc file:
 
 ```bash
 ${HOME}/.local/bin/wsl-ssh-agent-relay start
 export SSH_AUTH_SOCK=${HOME}/.ssh/wsl-ssh-agent.sock
 ```
 
-You *really* have to be on WSL 2 in order for this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l --all -v` to check what is going on. When on WSL 2 make sure that socat is installed and npiperelay.exe is on windows partition and path is right. For convenience I will be packing pre-build npiperelay.exe with wsl-ssh-agent. Please also ensure that `socat` is installed: `sudo apt install socat`.
+You *really* have to be on WSL 2 in order for this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l --all -v` to check what is going on. When on WSL 2 make sure that npiperelay.exe is on windows partition and path is right. For convenience I will be packing pre-build npiperelay.exe with wsl-ssh-agent. Please also ensure that `socat` is installed: `sudo apt install socat`.
 
 **NOTE:** You may be running Linux distribution with OpenSSH version more recent than your Windows host has out of the box. Presently Ubuntu 22.04 and Arch both demonstrate this - communication with ssh-agent will fail. In such cases please visit [Windows OpenSSH](https://github.com/PowerShell/Win32-OpenSSH) development and update your Windows OpenSSH with latest release.
 
