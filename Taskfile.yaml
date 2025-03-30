@@ -138,9 +138,8 @@ tasks:
     label: go-build-{{.PACKAGE}}-{{.TARGET}}-{{.FLAGS}}
     env: {GOOS: '{{default "linux" .GOOS}}', GOARCH: '{{default "amd64" .GOARCH}}'}
     vars:
-      # {{- if hasPrefix "debug" .FLAGS }}-mod=mod{{ else if hasPrefix "release" .FLAGS }}-mod=vendor{{ else }}
       GOARGS: |
-        {{- if hasPrefix "debug" .FLAGS }}-mod=mod{{ else if hasPrefix "release" .FLAGS }}-mod=mod{{ else }}
+        {{- if hasPrefix "debug" .FLAGS }}-mod=mod{{ else if hasPrefix "release" .FLAGS }}-mod=vendor{{ else }}
         {{fail "go build flags could be \"debug\" or \"release\" only!"}}
         {{ end }} -trimpath{{ if hasSuffix "-gui" .FLAGS }} -ldflags='-H=windowsgui'{{ end -}}
     cmds:
