@@ -16,11 +16,44 @@ ${HOME}/.local/bin/wsl-ssh-agent-relay start
 export SSH_AUTH_SOCK=${HOME}/.ssh/wsl-ssh-agent.sock
 ```
 
-You *really* have to be on WSL 2 in order for this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l --all -v` to check what is going on. When on WSL 2 make sure that npiperelay.exe is on windows partition and path is right. For convenience I will be packing pre-build npiperelay.exe with wsl-ssh-agent. Please also ensure that `socat` is installed: `sudo apt install socat`.
+**NOTE:** If you are having issues using `wsl-ssh-agent-relay` with systemd try adding `:WSLInterop:M::MZ::/init:PF` to `/usr/lib/binfmt.d/WSLInterop.conf`. For example (thanks to [rkl110](https://github.com/rkl110) - [Microsoft/WSL - Issue 8843](https://github.com/microsoft/WSL/issues/8843)):
+
+Alternatively if you prefer to properly use systemd support in WSL2 /etc/wsl.conf:
+
+```ini
+[boot]
+systemd = true
+```
+
+you could create wsl-ssh-agent.service unit in `/usr/lib/systemd/user`, something similar to:
+
+```ini
+[Unit]
+Description=Windows SSH Agent Proxy via npiperelay
+StartLimitIntervalSec=0
+
+[Service]
+Delegate=true
+Type=exec
+KillMode=process
+ExecStart=/usr/bin/socat UNIX-LISTEN:'/run/user/<user id, usually 1000>/wsl-ssh-agent.sock',fork EXEC:'/home/<user name>/winhome/.wsl/npiperelay.exe -ei -s //./pipe/openssh-ssh-agent',nofork
+
+[Install]
+WantedBy=default.target
+```
+
+and then enable it:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now wsl-ssh-agent.service
+
+export SSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/wsl-ssh-agent.sock
+```
+
+You *really* have to be on WSL 2 in order for all of this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l --all -v` to check what is going on. When on WSL 2 make sure that npiperelay.exe is on windows partition and path is right. For convenience I will be packing pre-build npiperelay.exe with wsl-ssh-agent. Please also ensure that `socat` is installed: `sudo apt install socat`.
 
 **NOTE:** You may be running Linux distribution with OpenSSH version more recent than your Windows host has out of the box. Presently Ubuntu 22.04 and Arch both demonstrate this - communication with ssh-agent will fail. In such cases please visit [Windows OpenSSH](https://github.com/PowerShell/Win32-OpenSSH) development and update your Windows OpenSSH with latest release.
-
-**NOTE:** If you are having issues using `wsl-ssh-agent-relay` with systemd try adding `:WSLInterop:M::MZ::/init:PF` to `/usr/lib/binfmt.d/WSLInterop.conf`. For example (thanks to [rkl110](https://github.com/rkl110) - [Microsoft/WSL - Issue 8843](https://github.com/microsoft/WSL/issues/8843)):
 
 ```bash
 sudo sh -c 'echo :WSLInterop:M::MZ::/init:PF > /usr/lib/binfmt.d/WSLInterop.conf'
