@@ -18,7 +18,11 @@ export SSH_AUTH_SOCK=${HOME}/.ssh/wsl-ssh-agent.sock
 
 **NOTE:** If you are having issues using `wsl-ssh-agent-relay` with systemd try adding `:WSLInterop:M::MZ::/init:PF` to `/usr/lib/binfmt.d/WSLInterop.conf`. For example (thanks to [rkl110](https://github.com/rkl110) - [Microsoft/WSL - Issue 8843](https://github.com/microsoft/WSL/issues/8843)):
 
-Alternatively if you prefer to properly use systemd support in WSL2 /etc/wsl.conf:
+```bash
+sudo sh -c 'echo :WSLInterop:M::MZ::/init:PF > /usr/lib/binfmt.d/WSLInterop.conf'
+```
+
+Alternatively if you prefer to directly use systemd support in WSL2 /etc/wsl.conf:
 
 ```ini
 [boot]
@@ -54,10 +58,6 @@ export SSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/wsl-ssh-agent.sock
 You *really* have to be on WSL 2 in order for all of this to work - if you see errors like `Cannot open netlink socket: Protocol not supported` - you probably are under WSL 1 and should not use this workaround. Run `wsl.exe -l --all -v` to check what is going on. When on WSL 2 make sure that npiperelay.exe is on windows partition and path is right. For convenience I will be packing pre-build npiperelay.exe with wsl-ssh-agent. Please also ensure that `socat` is installed: `sudo apt install socat`.
 
 **NOTE:** You may be running Linux distribution with OpenSSH version more recent than your Windows host has out of the box. Presently Ubuntu 22.04 and Arch both demonstrate this - communication with ssh-agent will fail. In such cases please visit [Windows OpenSSH](https://github.com/PowerShell/Win32-OpenSSH) development and update your Windows OpenSSH with latest release.
-
-```bash
-sudo sh -c 'echo :WSLInterop:M::MZ::/init:PF > /usr/lib/binfmt.d/WSLInterop.conf'
-```
 
 ## Helper to interface with Windows ssh-agent.exe service from WSL1 (replacement for ssh-agent-wsl).
 [![GitHub Release](https://img.shields.io/github/release/rupor-github/wsl-ssh-agent.svg)](https://github.com/rupor-github/wsl-ssh-agent/releases)
